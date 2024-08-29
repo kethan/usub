@@ -1,6 +1,6 @@
 # USub
 
-[![tests](https://github.com/kethan/usub/actions/workflows/node.js.yml/badge.svg)](https://github.com/kethan/usub/actions/workflows/node.js.yml) [![Version](https://img.shields.io/npm/v/usub.svg?color=success&style=flat-square)](https://www.npmjs.com/package/usub) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub/lite) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub)
+[![tests](https://github.com/kethan/usub/actions/workflows/node.js.yml/badge.svg)](https://github.com/kethan/usub/actions/workflows/node.js.yml) [![Version](https://img.shields.io/npm/v/usub.svg?color=success&style=flat-square)](https://www.npmjs.com/package/usub) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub)
 
 
 This JavaScript library provides utility functions for handling observables, signals, and asynchronous data streams across various reactive programming libraries. It supports flexible customization to integrate with different libraries, ensuring seamless subscription management and automatic cleanup.
