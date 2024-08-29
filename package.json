@@ -1,0 +1,56 @@
+{
+	"name": "usub",
+	"description": "Subscribe to any reactive sources",
+	"version": "0.0.1",
+	"type": "module",
+	"source": "./src/index.js",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"unpkg": "./dist/index.min.js",
+	"umd:main": "./dist/index.umd.js",
+	"exports": {
+		".": {
+			"browser": "./dist/index.es.js",
+			"umd": "./dist/index.umd.js",
+			"require": "./dist/index.js",
+			"import": "./dist/index.es.js",
+			"default": "./dist/index.es.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/kethan/usub.git"
+	},
+	"scripts": {
+		"build": "rollup --config rollup.config.js",
+		"test": "vitest",
+		"prepare": "husky"
+	},
+	"devDependencies": {
+		"@rollup/plugin-terser": "^0.4.4",
+		"husky": "^9.1.4",
+		"rollup": "^4.20.0",
+		"rollup-plugin-bundle-size": "^1.0.3",
+		"vitest": "^2.0.5"
+	},
+	"keywords": [
+		"usub",
+		"reactive",
+		"state",
+		"signal",
+		"async",
+		"observables",
+		"subscribe",
+		"effect",
+		"react",
+		"preact",
+		"solidjs"
+	],
+	"author": "Kethan Surana",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/kethan/usub/issues"
+	},
+	"homepage": "https://github.com/kethan/usub#readme"
+}
