@@ -31,14 +31,14 @@ const
         arg[Symbol.observable] ||        // Observable symbol
         arg[Symbol.asyncIterator] ||     // Async iterator
         arg.then ||                      // Promise
+        arg.call ||                      // Function
         arg.subscribe ||                 // Observable with subscribe method
         api.is(arg)                      // Custom observable check
     ),
 
     sub = (target, stop, unsub) => (next, error, complete) => target && (
         unsub = unsubr((target[Symbol.observable]?.() || target).subscribe?.((v) => next(get(v)), error, complete), complete) ||
-        (target.call && !api.is(target) && api.effect(() => next(get(target)))) ||
-        (api.is(target) && api.effect(() => next(get(target)))) ||
+        ((target.call || api.is(target)) && api.effect(() => next(get(target)))) ||
         (target.then?.(v => (!stop && next(get(v)), complete?.()), error)) ||
         (async v => {
             try {
@@ -56,4 +56,5 @@ export {
     is,
     api,
     sub,
+    get
 }

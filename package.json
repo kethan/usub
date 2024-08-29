@@ -1,7 +1,7 @@
 {
 	"name": "usub",
 	"description": "Subscribe to any reactive sources",
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"type": "module",
 	"source": "./src/index.js",
 	"main": "./dist/index.js",
