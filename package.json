@@ -22,6 +22,9 @@
 		"type": "git",
 		"url": "git+https://github.com/kethan/usub.git"
 	},
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "rollup --config rollup.config.js",
 		"test": "vitest",
