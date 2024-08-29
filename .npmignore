@@ -1,9 +1,0 @@
-.DS_Store
-.nyc_output
-.eslintrc.json
-.travis.yml
-.github
-coverage/
-node_modules/
-test/
-tsconfig.json
