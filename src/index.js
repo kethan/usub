@@ -15,6 +15,8 @@ const
 
     // API object providing basic functions for handling effects and values
     api = {
+        // Placeholder for any observable value
+        any: undefined,
         // Executes the provided function
         effect: (f) => f(),
         // Returns false for any value (placeholder implementation)
@@ -37,7 +39,8 @@ const
     ),
 
     sub = (target, stop, unsub) => (next, error, complete) => target && (
-        unsub = unsubr((target[Symbol.observable]?.() || target).subscribe?.((v) => next(get(v)), error, complete), complete) ||
+        unsub = api?.any?.(target)?.(next, error, complete) ||
+        unsubr((target[Symbol.observable]?.() || target).subscribe?.((v) => next(get(v)), error, complete), complete) ||
         ((target.call || api.is(target)) && api.effect(() => next(get(target)))) ||
         (target.then?.(v => (!stop && next(get(v)), complete?.()), error)) ||
         (async v => {

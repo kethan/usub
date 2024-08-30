@@ -2,7 +2,6 @@
 
 [![tests](https://github.com/kethan/usub/actions/workflows/node.js.yml/badge.svg)](https://github.com/kethan/usub/actions/workflows/node.js.yml) [![Version](https://img.shields.io/npm/v/usub.svg?color=success&style=flat-square)](https://www.npmjs.com/package/usub) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub)
 
-
 This JavaScript library provides utility functions for handling observables, signals, and asynchronous data streams across various reactive programming libraries. It supports flexible customization to integrate with different libraries, ensuring seamless subscription management and automatic cleanup.
 
 ## Table of Contents
@@ -16,6 +15,7 @@ This JavaScript library provides utility functions for handling observables, sig
     -   [Checking if an Object is Observable](#checking-if-an-object-is-observable)
     -   [Customizing for Your Reactive Library](#customizing-for-your-reactive-library)
 -   [Examples](#examples)
+    -   [Any Source](#any-source)
     -   [Solid.js](#solidjs)
     -   [Preact Signals](#preact-signals)
     -   [uSignal](#usignal)
@@ -30,7 +30,21 @@ This JavaScript library provides utility functions for handling observables, sig
 
 ## Installation
 
-To use this utility, copy the provided JavaScript file into your project. There are no external dependencies, so no installation via npm or other package managers is required.
+**yarn**: `yarn add usub`
+
+**npm**: `npm i usub`
+
+**cdn**: https://unpkg.com/usub
+
+**es**: https://unpkg.com/usub?module
+
+## Installation
+
+To use this utility, simply import it into your project:
+
+```js
+import { is, api, sub, get } from "usub";
+```
 
 ## Usage
 
@@ -38,6 +52,7 @@ To use this utility, copy the provided JavaScript file into your project. There 
 
 The library exports three primary functions:
 
+-   **`any`**: Add any type of source to react
 -   **`is`**: Checks if a value is considered an observable or reactive signal.
 -   **`api`**: Provides utility functions that can be customized to work with different reactive libraries.
 -   **`sub`**: Subscribes to an observable or other async/reactive patterns.
@@ -49,34 +64,38 @@ import { is, api, sub } from "usub";
 ```
 
 ### Subscribing to Observables
+
 The sub function is used to subscribe to an observable or other async patterns. It handles various types of asynchronous inputs like promises, async iterables, and functions.
 
 ```js
 const observable = {
-    subscribe: (next, error, complete) => {
-        next(1);
-        next(2);
-        next(3);
-        complete();
-        return {
-            unsubscribe: () => console.log('Unsubscribed')
-        };
-    }
+	subscribe: (next, error, complete) => {
+		next(1);
+		next(2);
+		next(3);
+		complete();
+		return {
+			unsubscribe: () => console.log("Unsubscribed"),
+		};
+	},
 };
 
-const unsubscribe = sub(observable)(console.log, console.error, () => console.log('Complete'));
+const unsubscribe = sub(observable)(console.log, console.error, () =>
+	console.log("Complete")
+);
 ```
+
 ### Checking if an Object is Observable
+
 Use the is function to check if a value is considered an observable by the library:
 
 ```js
 const observable = {
-    subscribe: () => {}
+	subscribe: () => {},
 };
 
-console.log(is(observable));  // Output: true
+console.log(is(observable)); // Output: true
 ```
-
 
 ### Promise
 
@@ -102,19 +121,57 @@ The library is designed to be easily customized for different reactive programmi
 
 ### API Overview
 
-- **api.effect(f)**
+-   **api.any(target)(next, err, complete)**
+
+api.any is a placeholder within the api object that can be used to represent or handle any observable-like object.
+
+### Purpose
+
+The primary purpose of api.any is to provide a centralized place for handling various types of observable objects, whether they are standard observables, promises, or custom implementations. This placeholder is particularly useful for abstraction and uniform handling of different observable sources in a consistent manner.
+
+### Default Behavior
+
+By default, api.any is set to undefined. This means that if it is not explicitly assigned a function or object, it will not provide any observable functionality. You need to assign it a specific function or observable to make it work.
+
+### Usage
+
+You can customize api.any to handle your specific observable implementations. For example, you might set api.any to a function that processes different observable types or provides default behavior for handling observable subscriptions and notifications.
+
+-   **api.effect(f)**
 
 Sets up the effect execution method. This function is where you define how to apply effects in your reactive library (e.g., createEffect in Solid.js, effect in Preact Signals).
 
-- **api.is(v)**
+-   **api.is(v)**
 
 Defines how to check if a value is a signal or observable. This is where you identify reactive signals from your library (e.g., checking if a value is an instance of Signal).
 
-- **api.get(v)**
+-   **api.get(v)**
 
 Specifies how to retrieve the current value from a signal or observable. This function is where you define how to extract the current value from your reactive signal (e.g., v?.value or v?.()).
 
 ### Example API Customization
+
+### Any source
+
+```js
+export let v =
+	(v, cb = []) =>
+	(c) =>
+		c === void 0
+			? v
+			: c.call
+			? cb.splice.bind(cb, cb.push(c) - 1, 1, 0)
+			: cb.map((f) => f && f((v = c)));
+
+api.any = (target) => (next, error, complete) => target((v) => next(v));
+
+const num = v(42);
+let off = sub(num)(console.log);
+num(20);
+num(3);
+off();
+num(30);
+```
 
 ### Solidjs
 
