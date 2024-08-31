@@ -15,7 +15,6 @@ const
 
     // API object providing basic functions for handling effects and values
     api = {
-        // Placeholder for any observable value
         any: undefined,
         // Executes the provided function
         effect: (f) => f(),
@@ -39,17 +38,19 @@ const
     ),
 
     sub = (target, stop, unsub) => (next, error, complete) => target && (
-        unsub = api?.any?.(target)?.(next, error, complete) ||
-        unsubr((target[Symbol.observable]?.() || target).subscribe?.((v) => next(get(v)), error, complete), complete) ||
+        unsub = unsubr((target[Symbol.observable]?.() || target).subscribe?.((v) => next(get(v)), error, complete), complete) ||
         ((target.call || api.is(target)) && api.effect(() => next(get(target)))) ||
-        (target.then?.(v => (!stop && next(get(v)), complete?.()), error)) ||
-        (async v => {
-            try {
-                for await (v of target) { if (stop) return; next(get(v)) }
-                complete?.()
-            } catch (err) { error?.(err) }
-        })()
-        && (_ => stop = 1),
+        (
+            target.then?.(v => (!stop && next(get(v)), complete?.()), error) ||
+            target[Symbol.asyncIterator] && (async v => {
+                try {
+                    // FIXME: possible drawback: it will catch error happened in next, not only in iterator
+                    for await (v of target) { if (stop) return; next(get(v)) }
+                    complete?.()
+                } catch (err) { error?.(err) }
+            })()
+        ) && (_ => stop = 1) ||
+        (api?.any?.(target)?.(next, error, complete)),
         // register autocleanup
         registry.register(target, unsub),
         unsub

@@ -163,7 +163,7 @@ export let v =
 			? cb.splice.bind(cb, cb.push(c) - 1, 1, 0)
 			: cb.map((f) => f && f((v = c)));
 
-api.any = (target) => (next, error, complete) => target((v) => next(v));
+api.any = (target) => (next, error, complete) => target?.(v => next(v));
 
 const num = v(42);
 let off = sub(num)(console.log);
