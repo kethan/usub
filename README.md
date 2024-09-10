@@ -149,6 +149,10 @@ Defines how to check if a value is a signal or observable. This is where you ide
 
 Specifies how to retrieve the current value from a signal or observable. This function is where you define how to extract the current value from your reactive signal (e.g., v?.value or v?.()).
 
+-   **api.cleanup()**
+
+Provides a function to handle cleanup logic. This can be used to define any custom cleanup behavior required when a subscription is no longer needed.
+
 ### Example API Customization
 
 ### Any source
@@ -163,7 +167,7 @@ export let v =
 			? cb.splice.bind(cb, cb.push(c) - 1, 1, 0)
 			: cb.map((f) => f && f((v = c)));
 
-api.any = (target) => (next, error, complete) => target?.(v => next(v));
+api.any = (target) => (next, error, complete) => target?.((v) => next(v));
 
 const num = v(42);
 let off = sub(num)(console.log);
@@ -176,11 +180,12 @@ num(30);
 ### Solidjs
 
 ```js
-const { createSignal, createEffect } = require("solid-js");
+const { createSignal, createEffect, cleanup } = require("solid-js");
 
 api.effect = createEffect;
 api.is = (v) => v?.name?.includes("readSignal");
 api.get = (v) => v?.();
+api.cleanup = cleanup; //optional
 
 const [val, setVal] = createSignal(0);
 

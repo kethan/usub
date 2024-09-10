@@ -5,17 +5,20 @@ Symbol.observable ||= Symbol('observable');
 const
     registry = new FinalizationRegistry((unsub) => {
         if (!unsub?._) {
-            unsub.call?.();
+            unsub?.call?.();
         }
     }),
     // Utility function to handle unsubscription and complete callback
-    unsubr = (unsub, complete, out) => (
-        unsub && (out = () => (unsub?.call ? unsub() : unsub?.unsubscribe?.(), out._ = true, complete?.()))
+    unsubr = (unsub, cleanup, out) => (
+        unsub && (out = () => (unsub?.call ? unsub() : unsub?.unsubscribe?.(), out._ = true, cleanup?.()))
     ),
 
     // API object providing basic functions for handling effects and values
     api = {
+        // Handle any reactive subscription
         any: undefined,
+        // If any cleanup is requested
+        cleanup: undefined,
         // Executes the provided function
         effect: (f) => f(),
         // Returns false for any value (placeholder implementation)
@@ -32,33 +35,32 @@ const
         arg[Symbol.observable] ||        // Observable symbol
         arg[Symbol.asyncIterator] ||     // Async iterator
         arg.then ||                      // Promise
-        arg.call ||                      // Function
+        (target?.call && !api?.any) ||                      // Function
         arg.subscribe ||                 // Observable with subscribe method
         api.is(arg)                      // Custom observable check
     ),
-
-    sub = (target, stop, unsub) => (next, error, complete) => target && (
-        unsub = unsubr((target[Symbol.observable]?.() || target).subscribe?.((v) => next(get(v)), error, complete), complete) ||
-        ((target.call || api.is(target)) && api.effect(() => next(get(target)))) ||
+    sub = (target, stop, unsub) => (next, error, cleanup) => target && (
+        unsub = unsubr((target[Symbol.observable]?.() || target).subscribe?.((v) => next(get(v)), error, cleanup), cleanup) ||
+        (((target?.call && !api?.any) || api.is(target)) && api.effect(() => (next(get(target)), api?.cleanup?.(cleanup) || cleanup))) ||
         (
-            target.then?.(v => (!stop && next(get(v)), complete?.()), error) ||
+            target.then?.(v => (!stop && next(get(v)), cleanup?.()), error) ||
             target[Symbol.asyncIterator] && (async v => {
                 try {
                     // FIXME: possible drawback: it will catch error happened in next, not only in iterator
                     for await (v of target) { if (stop) return; next(get(v)) }
-                    complete?.()
+                    cleanup?.()
                 } catch (err) { error?.(err) }
             })()
         ) && (_ => stop = 1) ||
-        (api?.any?.(target)?.(next, error, complete)),
+        (api?.any?.(target)?.(next, error, cleanup)),
         // register autocleanup
         registry.register(target, unsub),
         unsub
     );
 
 export {
-    is,
     api,
+    is,
     sub,
     get
 }
