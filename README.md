@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/kethan/usub/actions/workflows/node.js.yml/badge.svg)](https://github.com/kethan/usub/actions/workflows/node.js.yml) [![Version](https://img.shields.io/npm/v/usub.svg?color=success&style=flat-square)](https://www.npmjs.com/package/usub) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub)
 
-This JavaScript library provides utility functions for handling observables, signals, and asynchronous data streams across various reactive programming libraries. It supports flexible customization to integrate with different libraries, ensuring seamless subscription management and automatic cleanup.
+This javascript library provides utility functions for handling observables, signals, and asynchronous data streams across various reactive programming libraries. It supports flexible customization to integrate with different libraries, ensuring seamless subscription management and automatic cleanup.
 
 ## Table of Contents
 
@@ -18,9 +18,9 @@ This JavaScript library provides utility functions for handling observables, sig
     -   [Any Source](#any-source)
     -   [Solid.js](#solidjs)
     -   [Preact Signals](#preact-signals)
-    -   [uSignal](#usignal)
+    -   [usignal](#usignal)
     -   [@webreflection/signal](#webreflectionsignal)
-    -   [uLive](#ulive)
+    -   [ulive](#ulive)
     -   [RxJS Subject](#rxjs-subject)
     -   [Async Iterable](#async-iterable)
     -   [Synchronous Iterable](#synchronous-iterable)
@@ -50,18 +50,12 @@ import { is, api, sub, get } from "usub";
 
 ### Basic Setup
 
-The library exports three primary functions:
+The library exports four primary functions:
 
--   **`any`**: Add any type of source to react
 -   **`is`**: Checks if a value is considered an observable or reactive signal.
 -   **`api`**: Provides utility functions that can be customized to work with different reactive libraries.
 -   **`sub`**: Subscribes to an observable or other async/reactive patterns.
-
-Import the functions in your JavaScript file:
-
-```js
-import { is, api, sub } from "usub";
-```
+-   **`get`**: get function to retrieve reactive data
 
 ### Subscribing to Observables
 
@@ -345,9 +339,7 @@ const myIterable = {
 	},
 };
 
-for (const value of myIterable) {
-	console.log(value);
-}
+sub(myIterable)(console.log);
 ```
 
 ### Finalization and Cleanup

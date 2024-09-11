@@ -1,22 +1,19 @@
 {
 	"name": "usub",
 	"description": "Subscribe to any reactive sources",
-	"version": "0.2.4",
+	"version": "0.3.0",
 	"type": "module",
 	"source": "./src/index.js",
 	"main": "./dist/index.js",
-	"module": "./dist/index.js",
+	"module": "./dist/index.es.js",
 	"unpkg": "./dist/index.min.js",
 	"umd:main": "./dist/index.umd.js",
 	"exports": {
-		".": {
-			"browser": "./dist/index.es.js",
-			"umd": "./dist/index.umd.js",
-			"require": "./dist/index.js",
-			"import": "./dist/index.es.js",
-			"default": "./dist/index.es.js"
-		},
-		"./package.json": "./package.json"
+		"browser": "./dist/index.es.js",
+		"umd": "./dist/index.umd.js",
+		"require": "./dist/index.js",
+		"import": "./dist/index.es.js",
+		"default": "./dist/index.es.js"
 	},
 	"repository": {
 		"type": "git",
@@ -27,22 +24,22 @@
 	],
 	"scripts": {
 		"build": "rollup --config rollup.config.js",
-		"test": "vitest",
-		"prepare": "husky"
+		"test": "node --allow-natives-syntax --loader ./test/https-loader.js --expose-gc ./test/index.js"
 	},
 	"devDependencies": {
 		"@rollup/plugin-terser": "^0.4.4",
-		"husky": "^9.1.4",
 		"rollup": "^4.20.0",
 		"rollup-plugin-bundle-size": "^1.0.3",
-		"vitest": "^2.0.5"
+		"tst": "^7.3.0"
 	},
 	"keywords": [
+		"rxjs",
 		"usub",
 		"reactive",
 		"state",
 		"signal",
 		"async",
+		"observable",
 		"observables",
 		"subscribe",
 		"effect",
