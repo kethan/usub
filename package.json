@@ -1,7 +1,7 @@
 {
 	"name": "usub",
 	"description": "Subscribe to any reactive sources",
-	"version": "0.3.2",
+	"version": "0.4.0",
 	"type": "module",
 	"source": "./src/index.js",
 	"main": "./dist/index.js",
@@ -9,18 +9,29 @@
 	"unpkg": "./dist/index.min.js",
 	"umd:main": "./dist/index.umd.js",
 	"exports": {
-		"browser": "./dist/index.es.js",
-		"umd": "./dist/index.umd.js",
-		"require": "./dist/index.js",
-		"import": "./dist/index.es.js",
-		"default": "./dist/index.es.js"
+		".": {
+			"browser": "./dist/index.es.js",
+			"umd": "./dist/index.umd.js",
+			"require": "./dist/index.js",
+			"import": "./dist/index.es.js",
+			"default": "./dist/index.es.js"
+		},
+		"./lite": {
+			"browser": "./lite/dist/index.es.js",
+			"umd": "./lite/dist/index.umd.js",
+			"require": "./lite/dist/index.js",
+			"import": "./lite/dist/index.es.js",
+			"default": "./lite/dist/index.es.js"
+		},
+		"./package.json": "./package.json"
 	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/kethan/usub.git"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"lite"
 	],
 	"scripts": {
 		"build": "rollup --config rollup.config.js",

@@ -2,11 +2,16 @@
 
 [![tests](https://github.com/kethan/usub/actions/workflows/node.js.yml/badge.svg)](https://github.com/kethan/usub/actions/workflows/node.js.yml) [![Version](https://img.shields.io/npm/v/usub.svg?color=success&style=flat-square)](https://www.npmjs.com/package/usub) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub)
 
+#### lite
+
+[![Badge size](https://deno.bundlejs.com/badge?q=usub/lite&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub/lite) [![Badge size](https://deno.bundlejs.com/badge?q=usub/lite&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub/lite)
+
 This javascript library provides utility functions for handling observables, signals, and asynchronous data streams across various reactive programming libraries. It supports flexible customization to integrate with different libraries, ensuring seamless subscription management and automatic cleanup.
 
 ## Table of Contents
 
 -   [Installation](#installation)
+-   [Lite](#lite)
 -   [Usage](#usage)
     -   [Basic Setup](#basic-setup)
     -   [Promise](#promise)
@@ -44,6 +49,22 @@ To use this utility, simply import it into your project:
 
 ```js
 import { is, api, sub, get } from "usub";
+```
+
+### lite
+
+The lite utility does not contain subscribe, and set method for observ-* patterns.
+
+**cdn**: https://unpkg.com/usub/lite
+
+**es**: https://unpkg.com/usub/lite?module
+
+## Installation
+
+To use lite version, simply import it into your project:
+
+```js
+import { is, api, sub, get } from "usub/lite";
 ```
 
 ## Usage
