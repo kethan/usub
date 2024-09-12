@@ -31,7 +31,6 @@ const
     is = (arg) => arg && !!(
         arg[Symbol.observable] ||        // Observable symbol
         arg[Symbol.asyncIterator] ||     // Async iterator
-        arg[Symbol.iterator] ||          // Sync iterator
         arg.call && arg.set ||           // Observ-*
         arg.then ||                      // Promise
         arg.subscribe ||                 // Observable with subscribe method
@@ -45,7 +44,7 @@ const
         ((!api?.any && (api.is(target) || target?.call)) && api.effect(() => (next(get(target)), api?.cleanup?.(cleanup), cleanup))) ||
         (
             target.then?.(v => (!stop && next(get(v)), cleanup?.()), error) ||
-            (target[Symbol.asyncIterator] || target[Symbol.iterator]) && (async v => {
+            target[Symbol.asyncIterator] && (async v => {
                 try {
                     // FIXME: possible drawback: it will catch error happened in next, not only in iterator
                     for await (v of target) { if (stop) return; next(get(v)) }

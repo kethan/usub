@@ -22,17 +22,17 @@ const
     // Checks if the argument is considered an observable
     is = (arg) => arg && !!(
         arg[Symbol.asyncIterator] ||     // Async iterator
-        arg[Symbol.iterator] ||          // Sync iterator
         arg.then ||                      // Promise
         api.is(arg) ||                   // Custom observable check
         arg.call                         // Function
     ),
+    
     // Subscribe to an observable or value, and provide a callback for each value
     sub = (target, stop, unsub) => (next, error, cleanup) => target && (
         unsub = ((!api?.any && (api.is(target) || target?.call)) && api.effect(() => (next(get(target)), api?.cleanup?.(cleanup), cleanup))) ||
         (
             target.then?.(v => (!stop && next(get(v)), cleanup?.()), error) ||
-            (target[Symbol.asyncIterator] || target[Symbol.iterator]) && (async v => {
+            target[Symbol.asyncIterator] && (async v => {
                 try {
                     // FIXME: possible drawback: it will catch error happened in next, not only in iterator
                     for await (v of target) { if (stop) return; next(get(v)) }

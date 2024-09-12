@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/kethan/usub/actions/workflows/node.js.yml/badge.svg)](https://github.com/kethan/usub/actions/workflows/node.js.yml) [![Version](https://img.shields.io/npm/v/usub.svg?color=success&style=flat-square)](https://www.npmjs.com/package/usub) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub) [![Badge size](https://deno.bundlejs.com/badge?q=usub&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub)
 
-#### lite
+#### lite version
 
 [![Badge size](https://deno.bundlejs.com/badge?q=usub/lite&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub/lite) [![Badge size](https://deno.bundlejs.com/badge?q=usub/lite&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub/lite)
 
@@ -10,28 +10,27 @@ This javascript library provides utility functions for handling observables, sig
 
 ## Table of Contents
 
--   [Installation](#installation)
--   [Lite](#lite)
--   [Usage](#usage)
-    -   [Basic Setup](#basic-setup)
-    -   [Promise](#promise)
-    -   [Subscribing to Observables](#subscribing-to-observables)
-    -   [API Overview](#api-overview)
-    -   [Checking if an Object is Observable](#checking-if-an-object-is-observable)
-    -   [Customizing for Your Reactive Library](#customizing-for-your-reactive-library)
--   [Examples](#examples)
-    -   [Any Source](#any-source)
-    -   [Solid.js](#solidjs)
-    -   [Preact Signals](#preact-signals)
-    -   [usignal](#usignal)
-    -   [@webreflection/signal](#webreflectionsignal)
-    -   [ulive](#ulive)
-    -   [RxJS Subject](#rxjs-subject)
-    -   [Async Iterable](#async-iterable)
-    -   [Synchronous Iterable](#synchronous-iterable)
--   [Finalization and Cleanup](#finalization-and-cleanup)
--   [License](#license)
--   [Thanks](#thanks)
+- [Installation](#installation)
+- [Lite](#lite)
+- [Usage](#usage)
+  - [Basic Setup](#basic-setup)
+  - [Promise](#promise)
+  - [Subscribing to Observables](#subscribing-to-observables)
+  - [API Overview](#api-overview)
+  - [Checking if an Object is Observable](#checking-if-an-object-is-observable)
+  - [Customizing for Your Reactive Library](#customizing-for-your-reactive-library)
+- [Examples](#examples)
+  - [Any Source](#any-source)
+  - [Solid.js](#solidjs)
+  - [Preact Signals](#preact-signals)
+  - [usignal](#usignal)
+  - [@webreflection/signal](#webreflectionsignal)
+  - [ulive](#ulive)
+  - [RxJS Subject](#rxjs-subject)
+  - [Async Iterable](#async-iterable)
+- [Finalization and Cleanup](#finalization-and-cleanup)
+- [License](#license)
+- [Thanks](#thanks)
 
 ## Installation
 
@@ -43,8 +42,6 @@ This javascript library provides utility functions for handling observables, sig
 
 **es**: https://unpkg.com/usub?module
 
-## Installation
-
 To use this utility, simply import it into your project:
 
 ```js
@@ -53,13 +50,13 @@ import { is, api, sub, get } from "usub";
 
 ### lite
 
-The lite utility does not contain subscribe, and set method for observ-* patterns.
+The lite utility does not contain subscribe, and set method for observ-\* patterns.
 
 **cdn**: https://unpkg.com/usub/lite
 
 **es**: https://unpkg.com/usub/lite?module
 
-## Installation
+## Lite Installation
 
 To use lite version, simply import it into your project:
 
@@ -73,10 +70,10 @@ import { is, api, sub, get } from "usub/lite";
 
 The library exports four primary functions:
 
--   **`is`**: Checks if a value is considered an observable or reactive signal.
--   **`api`**: Provides utility functions that can be customized to work with different reactive libraries.
--   **`sub`**: Subscribes to an observable or other async/reactive patterns.
--   **`get`**: get function to retrieve reactive data
+- **`is`**: Checks if a value is considered an observable or reactive signal.
+- **`api`**: Provides utility functions that can be customized to work with different reactive libraries.
+- **`sub`**: Subscribes to an observable or other async/reactive patterns.
+- **`get`**: get function to retrieve reactive data
 
 ### Subscribing to Observables
 
@@ -136,7 +133,7 @@ The library is designed to be easily customized for different reactive programmi
 
 ### API Overview
 
--   **api.any(target)(next, err, complete)**
+- **api.any(target)(next, err, complete)**
 
 api.any is a placeholder within the api object that can be used to represent or handle any observable-like object.
 
@@ -152,19 +149,19 @@ By default, api.any is set to undefined. This means that if it is not explicitly
 
 You can customize api.any to handle your specific observable implementations. For example, you might set api.any to a function that processes different observable types or provides default behavior for handling observable subscriptions and notifications.
 
--   **api.effect(f)**
+- **api.effect(f)**
 
 Sets up the effect execution method. This function is where you define how to apply effects in your reactive library (e.g., createEffect in Solid.js, effect in Preact Signals).
 
--   **api.is(v)**
+- **api.is(v)**
 
 Defines how to check if a value is a signal or observable. This is where you identify reactive signals from your library (e.g., checking if a value is an instance of Signal).
 
--   **api.get(v)**
+- **api.get(v)**
 
 Specifies how to retrieve the current value from a signal or observable. This function is where you define how to extract the current value from your reactive signal (e.g., v?.value or v?.()).
 
--   **api.cleanup()**
+- **api.cleanup()**
 
 Provides a function to handle cleanup logic. This can be used to define any custom cleanup behavior required when a subscription is no longer needed.
 
@@ -324,14 +321,7 @@ const asyncIterable = {
 			next() {
 				if (this.i < 5)
 					return new Promise((ok) =>
-						setTimeout(
-							() =>
-								ok({
-									value: this.i++,
-									done: false,
-								}),
-							10
-						)
+						setTimeout(() => ok({ value: this.i++, done: false }), 10)
 					);
 				return new Promise((ok) => ok({ done: true }));
 			},
@@ -340,27 +330,6 @@ const asyncIterable = {
 };
 
 sub(asyncIterable)(console.log, console.error, () => console.log("end"));
-```
-
-### Synchronous Iterable
-
-```js
-const myIterable = {
-	[Symbol.iterator]() {
-		let step = 10;
-		return {
-			next() {
-				if (step++ <= 13) {
-					return { value: step, done: false };
-				} else {
-					return { value: undefined, done: true };
-				}
-			},
-		};
-	},
-};
-
-sub(myIterable)(console.log);
 ```
 
 ### Finalization and Cleanup
@@ -373,4 +342,4 @@ This library is provided "as-is" under the MIT license. Feel free to use, modify
 
 ### Thanks and Inspiration
 
--   **[dy](https://github.com/dy)**
+- **[dy](https://github.com/dy)**
