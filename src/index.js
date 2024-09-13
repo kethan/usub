@@ -13,9 +13,9 @@ const
     // API object providing basic functions for handling effects and values
     api = {
         // Handle any reactive subscription
-        any: undefined,
-        // If any cleanup is requested
-        cleanup: undefined,
+        // any: undefined,
+        // // If any cleanup is requested
+        // cleanup: undefined,
         // Executes the provided function
         effect: (f) => f(),
         // Returns false for any value (placeholder implementation)
@@ -41,7 +41,7 @@ const
     sub = (target, stop, unsub) => (next, error, cleanup) => target && (
         unsub = unsubr((target[Symbol.observable]?.() || target).subscribe?.((v) => next(get(v)), error, cleanup), cleanup) ||
         target.set && target.call?.(stop, next) ||
-        ((!api?.any && (api.is(target) || target?.call)) && api.effect(() => (next(get(target)), api?.cleanup?.(cleanup), cleanup))) ||
+        ((!api.any && (api.is(target) || target.call)) && api.effect(() => (next(get(target)), api.cleanup?.(cleanup), cleanup))) ||
         (
             target.then?.(v => (!stop && next(get(v)), cleanup?.()), error) ||
             target[Symbol.asyncIterator] && (async v => {
@@ -52,7 +52,7 @@ const
                 } catch (err) { error?.(err) }
             })()
         ) && (_ => stop = 1) ||
-        (api?.any?.(target)?.(next, error, cleanup)),
+        (api.any?.(target)?.(next, error, cleanup)),
         // register autocleanup
         registry.register(target, unsub),
         unsub
