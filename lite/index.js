@@ -28,7 +28,7 @@ const
     ),
 
     // Subscribe to an observable or value, and provide a callback for each value
-    sub = (target, stop, unsub) => (next, error, cleanup) => target && (
+    sub = (target, next, error, cleanup, stop, unsub) => target && (
         unsub = ((!api.any && (api.is(target) || target.call)) && api.effect(() => (next(get(target)), api.cleanup?.(cleanup), cleanup))) ||
         (
             target.then?.(v => (!stop && next(get(v)), cleanup?.()), error) ||

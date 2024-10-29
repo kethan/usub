@@ -20,7 +20,7 @@ function tick(n = 1) {
 t('Promise: next', async () => {
   let arr = []
   let p = new Promise(ok => setTimeout(() => ok(1)))
-  sub(p)(v => arr.push(v), e => arr.push(e), () => arr.push('end'))
+  sub(p, v => arr.push(v), e => arr.push(e), () => arr.push('end'))
 
   is(arr, [])
   await time()
@@ -30,7 +30,7 @@ t('Promise: next', async () => {
 t('Promise: error', async () => {
   let arr = []
   let p = new Promise((ok, err) => setTimeout(() => { err(Error('xyz')) }))
-  sub(p)(null, err => arr.push(err.message), done => arr.push(done))
+  sub(p, null, err => arr.push(err.message), done => arr.push(done))
 
   is(arr, [])
   await time()
@@ -42,7 +42,7 @@ t('rxjs', async () => {
   const { Subject } = await import('https://cdn.skypack.dev/rxjs')
   const subject = new Subject();
 
-  const unsub = sub(subject)(v => arr.push(v), err => arr.push(err), () => arr.push('end'))
+  const unsub = sub(subject, v => arr.push(v), err => arr.push(err), () => arr.push('end'))
 
   is(arr, [])
   subject.next(1);
@@ -61,7 +61,7 @@ t('observ', async () => {
   const { default: Observable } = await import('https://cdn.skypack.dev/observ')
 
   var v = Observable(1)
-  sub(v)(v => arr.push(v))
+  sub(v, v => arr.push(v))
   is(arr, [])
   v.set(2)
   is(arr, [2])
@@ -72,7 +72,7 @@ t('observable', async () => {
   const { default: Observable } = await import('https://cdn.skypack.dev/observable')
 
   var v = Observable(1)
-  sub(v)(v => arr.push(v))
+  sub(v, v => arr.push(v))
   is(arr, [1])
   v(2)
   is(arr, [1, 2])
@@ -94,7 +94,7 @@ t('asyncIterable', async () => {
     }
   };
 
-  sub(asyncIterable)(v => arr.push(v), err => err, v => arr.push('end'))
+  sub(asyncIterable, v => arr.push(v), err => err, v => arr.push('end'))
   is(arr, [])
   await tick()
   is(arr, [0, 1])
@@ -106,7 +106,7 @@ t('does not keep observer refs for mock', async () => {
   let arr = []
   let mock = { subscribe() { arr.push('sub'); return { unsubscribe: () => arr.push('unsub') } } }
 
-  let unsub = sub(mock)(v => arr.push(v))
+  let unsub = sub(mock, v => arr.push(v))
   is(arr, ['sub'])
 
   mock = null
@@ -120,7 +120,7 @@ t('collecting callback doesnt invoke unsubscribe', async () => {
   let arr = []
   let mock = { subscribe() { arr.push('sub'); return { unsubscribe: () => arr.push('unsub') } } }
   let cb = v => arr.push(v)
-  let unsub = sub(mock)(cb)
+  let unsub = sub(mock, cb)
   is(arr, ['sub'])
 
   cb = null
@@ -137,7 +137,7 @@ t('does not keep observer refs for signal', async () => {
   let arr = []
   let s1 = signal(0)
 
-  const unsub = sub(s1)(v => arr.push(v), null, () => arr.push('end'))
+  const unsub = sub(s1, v => arr.push(v), null, () => arr.push('end'))
 
   is(arr, [0])
 
@@ -173,7 +173,7 @@ t('solid.js', async () => {
   api.cleanup = onCleanup;
 
   let [val, setVal] = createSignal(0);
-  sub(val)((v) => arr.push(v), null, () => arr.push('clean'));
+  sub(val, (v) => arr.push(v), null, () => arr.push('clean'));
   setVal(10);
   setVal(20);
   setVal = null;
@@ -184,7 +184,7 @@ t('solid.js', async () => {
 
   arr = [];
   let [val1, setVal1] = createSignal(0);
-  const off = sub(val1)((v) => arr.push(v), null, () => arr.push('clean'));
+  const off = sub(val1, (v) => arr.push(v), null, () => arr.push('clean'));
   setVal1(10);
   setVal1(20);
   off();
@@ -203,7 +203,7 @@ t('usignal', async () => {
   api.get = (v) => v?.value;
 
   let val = signal(0);
-  sub(val)((v) => arr.push(v), null, () => arr.push('clean'));
+  sub(val, (v) => arr.push(v), null, () => arr.push('clean'));
   await tick();
   val.value = 10;
   await tick();
@@ -216,7 +216,7 @@ t('usignal', async () => {
 
   arr = [];
   let val1 = signal(0);
-  let off = sub(val1)((v) => arr.push(v), null, () => arr.push('clean'));
+  let off = sub(val1, (v) => arr.push(v), null, () => arr.push('clean'));
   await tick();
   val1.value = 10;
   await tick();
@@ -237,7 +237,7 @@ t('@webreflection/signal', async () => {
 
   let val = signal(0);
 
-  sub(val)((v) => arr.push(v), null, () => arr.push('clean'));
+  sub(val, (v) => arr.push(v), null, () => arr.push('clean'));
   val.value = 10;
   val.value = 20;
   val = null;
@@ -248,7 +248,7 @@ t('@webreflection/signal', async () => {
 
   arr = [];
   let val1 = signal(0);
-  let off = sub(val1)((v) => arr.push(v), null, () => arr.push('clean'));
+  let off = sub(val1, (v) => arr.push(v), null, () => arr.push('clean'));
   val1.value = 10;
   val1.value = 20;
   off();
@@ -265,7 +265,7 @@ t('ulive', async () => {
   api.get = (v) => v?.value;
 
   let val = signal(0);
-  sub(val)((v) => arr.push(v), null, () => arr.push('clean'));
+  sub(val, (v) => arr.push(v), null, () => arr.push('clean'));
   val.value = 10;
   val.value = 20;
   // off();
@@ -277,7 +277,7 @@ t('ulive', async () => {
 
   arr = [];
   let val1 = signal(0);
-  let off = sub(val1)((v) => arr.push(v), null, () => arr.push('clean'));
+  let off = sub(val1, (v) => arr.push(v), null, () => arr.push('clean'));
   val1.value = 10;
   val1.value = 20;
   off();
@@ -293,7 +293,7 @@ t('function', async () => {
   api.get = v => v?.call?.();
 
   let arr = [];
-  sub(fun)((v) => arr.push(v));
+  sub(fun, (v) => arr.push(v));
   is(arr, ['fun'])
 });
 
@@ -312,7 +312,7 @@ t('api.any', async () => {
 
   let arr = [];
   let val = v(0);
-  sub(val)((v) => arr.push(v));
+  sub(val, (v) => arr.push(v));
   val(10);
   val(20);
   val = null;
@@ -323,7 +323,7 @@ t('api.any', async () => {
 
   arr = [];
   let val1 = v(0);
-  let off = sub(val1)((v) => arr.push(v));
+  let off = sub(val1, (v) => arr.push(v));
   val1(10);
   val1(20);
   off();

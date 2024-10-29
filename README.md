@@ -92,7 +92,7 @@ const observable = {
 	},
 };
 
-const unsubscribe = sub(observable)(console.log, console.error, () =>
+const unsubscribe = sub(observable, console.log, console.error, () =>
 	console.log("Complete")
 );
 ```
@@ -119,7 +119,7 @@ console.log(is(observable)); // Output: true
 		}, 1000);
 	});
 
-	sub(promise)(
+	sub(promise,
 		(value) => console.log("Resolved value:", value),
 		(error) => console.error("Error:", error),
 		() => console.log("Promise complete")
@@ -182,7 +182,7 @@ export let v =
 api.any = (target) => (next, error, complete) => target?.((v) => next(v));
 
 const num = v(42);
-let off = sub(num)(console.log);
+let off = sub(num, console.log);
 num(20);
 num(3);
 off();
@@ -201,7 +201,7 @@ api.cleanup = cleanup; //optional
 
 const [val, setVal] = createSignal(0);
 
-sub(val)(console.log);
+sub(val, console.log);
 setVal(10);
 setVal(20);
 ```
@@ -217,7 +217,7 @@ api.get = (v) => v?.value;
 
 const val = signal(0);
 
-const stop = sub(val)((v) => {
+const stop = sub(val, (v) => {
 	console.log(v);
 });
 
@@ -238,7 +238,7 @@ api.get = (v) => v?.value;
 
 const val = signal(0);
 
-const stop = sub(val)((v) => {
+const stop = sub(val, (v) => {
 	console.log(v);
 });
 
@@ -259,7 +259,7 @@ api.get = (v) => v?.value;
 
 const val = signal(0);
 
-const stop = sub(val)((v) => {
+const stop = sub(val, (v) => {
 	console.log(v);
 });
 
@@ -280,7 +280,7 @@ api.get = (v) => v?.value;
 
 const val = signal(0);
 
-const stop = sub(val)((v) => {
+const stop = sub(val, (v) => {
 	console.log(v);
 });
 
@@ -297,7 +297,7 @@ const { Subject } = require("rxjs");
 const subject = new Subject();
 
 let arr = [];
-const unsub = sub(subject)(
+const unsub = sub(subject,
 	(v) => arr.push(v),
 	(err) => arr.push(err),
 	() => arr.push("end")
@@ -329,7 +329,7 @@ const asyncIterable = {
 	},
 };
 
-sub(asyncIterable)(console.log, console.error, () => console.log("end"));
+sub(asyncIterable, console.log, console.error, () => console.log("end"));
 ```
 
 ### Finalization and Cleanup
