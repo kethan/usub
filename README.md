@@ -6,12 +6,17 @@
 
 [![Badge size](https://deno.bundlejs.com/badge?q=usub/lite&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub/lite) [![Badge size](https://deno.bundlejs.com/badge?q=usub/lite&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub/lite)
 
+#### tiny version
+
+[![Badge size](https://deno.bundlejs.com/badge?q=usub/tiny&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub/tiny) [![Badge size](https://deno.bundlejs.com/badge?q=usub/tiny&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub/tiny)
+
 This javascript library provides utility functions for handling observables, signals, and asynchronous data streams across various reactive programming libraries. It supports flexible customization to integrate with different libraries, ensuring seamless subscription management and automatic cleanup.
 
 ## Table of Contents
 
 - [Installation](#installation)
 - [Lite](#lite)
+- [Tiny](#tiny)
 - [Usage](#usage)
   - [Basic Setup](#basic-setup)
   - [Promise](#promise)
@@ -62,6 +67,22 @@ To use lite version, simply import it into your project:
 
 ```js
 import { is, api, sub, get } from "usub/lite";
+```
+
+### tiny
+
+The tiny utility does not contain subscribe, set method for observ-\* patterns and async iterable support.
+
+**cdn**: https://unpkg.com/usub/tiny
+
+**es**: https://unpkg.com/usub/tiny?module
+
+## Tiny Installation
+
+To use tiny version, simply import it into your project:
+
+```js
+import { is, api, sub, get } from "usub/tiny";
 ```
 
 ## Usage

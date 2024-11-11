@@ -1,5 +1,11 @@
 import t, { is } from 'tst'
-import { sub, api, get, is as isObs } from '../src/index.js'
+import { sub, api, get } from '../src/index.js'
+// Replace the loader configuration with:
+// import { register } from "node:module";
+// console.log('register', register);
+
+// import { pathToFileURL } from "node:url";
+// register("./https-loader.js", pathToFileURL("./"));
 
 //https://github.com/dy/wait-please/blob/master/index.js
 export function time(n) {
@@ -298,6 +304,10 @@ t('function', async () => {
 });
 
 t('api.any', async () => {
+  // api.is = v => v?.call;
+  // api.get = v => v?.();
+  api.effect = undefined;
+  api.any = (target) => (next) => target?.(next)
 
   let v =
     (val, cb = []) =>
@@ -307,8 +317,6 @@ t('api.any', async () => {
           : c.call
             ? cb.splice.bind(cb, cb.push(c) - 1, 1, 0)
             : ((val = c), cb.map((f) => f && f(val)));
-
-  api.any = (target) => (next, error, cleanup) => (target?.(next));
 
   let arr = [];
   let val = v(0);

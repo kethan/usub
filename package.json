@@ -1,7 +1,7 @@
 {
 	"name": "usub",
 	"description": "Subscribe to any reactive sources",
-	"version": "0.6.0",
+	"version": "0.7.0",
 	"type": "module",
 	"source": "./src/index.js",
 	"main": "./dist/index.js",
@@ -31,7 +31,8 @@
 	},
 	"files": [
 		"dist",
-		"lite"
+		"lite",
+		"tiny"
 	],
 	"scripts": {
 		"build": "rollup --config rollup.config.js",
