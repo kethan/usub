@@ -1,12 +1,12 @@
 Symbol.observable ||= Symbol('observable');
-const registry = new FinalizationRegistry(unsub => (!unsub?._ && unsub?.call?.()));
+const registry = new FinalizationRegistry(unsub => (!unsub?._ && unsub?.()));
 const unsubr = (unsub, cleanup, out) => (unsub && (out = () => (unsub?.call ? unsub() : unsub?.unsubscribe?.(), out._ = true, cleanup?.())));
 const api = {
     // any: undefined,            // any placeholder
     // cleanup: undefined,        // cleanup placeholder
     effect: f => f(),             // effect placeholder
     is: v => v?.call,             // is placeholder
-    get: v => v?.call(),          // get placeholder
+    get: v => v?.(),          // get placeholder
 };
 const get = v => api.is(v) ? get(api.get(v)) : v?.call ? get(v()) : v;
 const is = arg => arg && !!(
