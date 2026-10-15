@@ -1,5 +1,7 @@
 import t, { is } from 'tst'
 import { sub, api, get } from '../src/index.js'
+import { sub as liteSub, api as liteApi } from '../lite/index.js'
+import { sub as tinySub, api as tinyApi } from '../tiny/index.js'
 // Replace the loader configuration with:
 // import { register } from "node:module";
 // console.log('register', register);
@@ -45,7 +47,7 @@ t('Promise: error', async () => {
 
 t('rxjs', async () => {
   const arr = []
-  const { Subject } = await import('https://cdn.skypack.dev/rxjs')
+  const { Subject } = await import('rxjs')
   const subject = new Subject();
 
   const unsub = sub(subject, v => arr.push(v), err => arr.push(err), () => arr.push('end'))
@@ -64,7 +66,7 @@ t('rxjs', async () => {
 
 t('observ', async () => {
   const arr = []
-  const { default: Observable } = await import('https://cdn.skypack.dev/observ')
+  const { default: Observable } = await import('observ')
 
   var v = Observable(1)
   sub(v, v => arr.push(v))
@@ -75,7 +77,7 @@ t('observ', async () => {
 
 t('observable', async () => {
   const arr = []
-  const { default: Observable } = await import('https://cdn.skypack.dev/observable')
+  const { default: Observable } = await import('observable')
 
   var v = Observable(1)
   sub(v, v => arr.push(v))
@@ -138,7 +140,7 @@ t('collecting callback doesnt invoke unsubscribe', async () => {
 
 t('does not keep observer refs for signal', async () => {
 
-  const { signal } = await import('https://cdn.skypack.dev/@preact/signals-core')
+  const { signal } = await import('@preact/signals-core')
 
   let arr = []
   let s1 = signal(0)
@@ -163,7 +165,7 @@ t('does not keep observer refs for signal', async () => {
 })
 
 t('solid.js', async () => {
-  const { createSignal, createEffect, onCleanup, createRoot } = await import('https://cdn.skypack.dev/solid-js');
+  const { createSignal, createEffect, onCleanup, createRoot } = await import('solid-js/dist/solid.js');
   let arr = [];
 
   api.effect = (f) => {
@@ -201,7 +203,7 @@ t('solid.js', async () => {
 });
 
 t('usignal', async () => {
-  const { effect, signal, Signal } = await import('https://cdn.skypack.dev/usignal');
+  const { effect, signal, Signal } = await import('usignal');
   let arr = [];
 
   api.effect = effect;
@@ -234,7 +236,7 @@ t('usignal', async () => {
 });
 
 t('@webreflection/signal', async () => {
-  const { effect, signal, Signal } = await import('https://cdn.skypack.dev/@webreflection/signal');
+  const { effect, signal, Signal } = await import('@webreflection/signal');
   let arr = [];
 
   api.effect = effect;
@@ -263,7 +265,7 @@ t('@webreflection/signal', async () => {
 });
 
 t('ulive', async () => {
-  const { effect, signal } = await import('https://cdn.skypack.dev/ulive');
+  const { effect, signal } = await import('ulive');
   let arr = [];
 
   api.effect = effect;
@@ -338,6 +340,64 @@ t('api.any', async () => {
   val1(30);
   is(arr, [10, 20])
 });
+
+// A FinalizationRegistry entry can never be cleared when the value registered for
+// the target can reach the target: the finalizer keeps the target alive. An effect
+// runner owns its disposer (which, in every real library, closes over the runner and
+// its callback), so parking that disposer in the registry retains the source and
+// everything the callback touches, forever - even after the subscription is disposed.
+// With the fix, only paths we do not own (subscribe/then/async-iterator) are parked.
+function effectOwnedSubs(subImpl, apiObj) {
+  const runners = new Set();
+  apiObj.effect = (f) => {
+    const runner = () => f();
+    runners.add(runner);
+    runner();
+    return () => { runners.delete(runner) };
+  };
+  apiObj.is = (v) => v && v.peek !== undefined;
+  apiObj.get = (v) => v.value;
+  apiObj.cleanup = undefined;
+  apiObj.any = undefined;
+  const refs = [];
+  for (let i = 0; i < 20; i++) {
+    const target = { value: 1, peek: 1 };
+    const payload = { n: i };
+    const off = subImpl(target, () => payload);
+    refs.push(new WeakRef(target), new WeakRef(payload));
+    off();
+  }
+  return refs;
+}
+const apiDefaults = (apiObj) => {
+  apiObj.effect = f => f();
+  apiObj.is = v => v?.call;
+  apiObj.get = v => v?.();
+  apiObj.cleanup = apiObj.any = undefined;
+};
+
+t('effect owned subscription is released (not parked in the registry)', async () => {
+  for (const [name, impl, apiObj] of [['src', sub, api], ['lite', liteSub, liteApi], ['tiny', tinySub, tinyApi]]) {
+    const refs = effectOwnedSubs(impl, apiObj);
+    apiDefaults(apiObj);
+    await gc();
+    const held = refs.filter(r => r.deref() !== undefined).length;
+    is(held, 0, `${name}: ${held} of ${refs.length} refs retained - registry parked an effect owned disposer`);
+  }
+});
+
+t('subscriptions usub does not own are still parked for the source-gc safety net', async () => {
+  // the mock subscribe path has no effect runner owning the disposer - the registry
+  // must keep parking it there, so a collected source still runs the unsubscriber
+  let arr = [];
+  let mock = { subscribe() { arr.push('sub'); return { unsubscribe: () => arr.push('unsub') } } };
+  sub(mock, v => arr.push(v));
+  is(arr, ['sub']);
+  mock = null;
+  await gc();
+  is(arr, ['sub', 'unsub']);
+});
+
 async function gc() {
   // gc is async somehow
   await time(50)

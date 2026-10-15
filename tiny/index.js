@@ -13,13 +13,13 @@ const is = arg => arg && !!(
   arg.call                         // Function
 );
 
-const sub = (target, next, error, cleanup, stop, unsub) => target && (
+const sub = (target, next, error, cleanup, stop, unsub, fx) => target && (
   unsub = (
     (api.is(target) || target.call) && (
-      api.any?.(target)?.(next, error, cleanup) || api.effect?.(() => (next(get(target)), api.cleanup?.(cleanup), cleanup))
+      api.any?.(target)?.(next, error, cleanup) || (fx = api.effect?.(() => (next(get(target)), api.cleanup?.(cleanup), cleanup)))
     )) ||
   (target.then?.(v => (!stop && next(get(v)), cleanup?.()), error)) && (_ => stop = 1),
-  registry.register(target, unsub),
+  fx || registry.register(target, unsub),
   unsub
 );
 

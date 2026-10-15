@@ -19,10 +19,10 @@ const is = arg => arg && !!(
     arg.call                         // Function
 );
 
-const sub = (target, next, error, cleanup, stop, unsub) => target &&
+const sub = (target, next, error, cleanup, stop, unsub, fx) => target &&
     (unsub = unsubr((target[Symbol.observable]?.() || target).subscribe?.((v) => next(get(v)), error, cleanup), cleanup) ||
         target.set && target.call?.(stop, next) ||
-        ((api.is(target) || target.call) && (api.any?.(target)?.(next, error, cleanup) || api.effect?.(() => (next(get(target)), api.cleanup?.(cleanup), cleanup)))) ||
+        ((api.is(target) || target.call) && (api.any?.(target)?.(next, error, cleanup) || (fx = api.effect?.(() => (next(get(target)), api.cleanup?.(cleanup), cleanup))))) ||
         (target.then?.(v => (!stop && next(get(v)), cleanup?.()), error) ||
             (async v => {
                 try {
@@ -31,7 +31,7 @@ const sub = (target, next, error, cleanup, stop, unsub) => target &&
                 } catch (err) { error?.(err) }
             })()
         ) && (_ => stop = 1),
-        registry.register(target, unsub),
+        fx || registry.register(target, unsub), // effect owned: the disposer must not be parked in the registry (it would reach the target and never clear)
         unsub
     );
 
