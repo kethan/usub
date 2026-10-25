@@ -3,6 +3,7 @@ import { sub, api, get } from '../src/index.js'
 import { sub as liteSub, api as liteApi } from '../lite/index.js'
 import { sub as tinySub, api as tinyApi } from '../tiny/index.js'
 import { registerEdgeCaseTests } from './edge-cases.js'
+import { registerSignalAdapterTests } from './signals.js'
 
 const origApis = new Map([
   [api, { effect: api.effect, is: api.is, get: api.get }],
@@ -412,6 +413,7 @@ t('subscriptions usub does not own are still parked for the source-gc safety net
 });
 
 registerEdgeCaseTests({ time, tick, gc, resetAllApis });
+registerSignalAdapterTests({ time, tick, gc, resetAllApis });
 
 async function gc() {
   // gc is async somehow

@@ -218,7 +218,7 @@ const { createSignal, createEffect, onCleanup, createRoot } = require("solid-js"
 api.effect = (f) => createRoot((dispose) => (createEffect(f), dispose));
 api.is = (v) => v?.name?.includes("readSignal");
 api.get = (v) => v?.();
-api.cleanup = onCleanup; //optional
+api.cleanup = (fn) => fn && onCleanup(fn); //optional
 
 const [val, setVal] = createSignal(0);
 
@@ -331,6 +331,30 @@ console.log(arr);
 
 unsub();
 ```
+
+### Tested Signal & Store Adapters
+
+All adapters below are continuously tested in [`test/signals.js`](./test/signals.js) across `usub`, `usub/lite`, and `usub/tiny` (writable signals, derived/computed memos, conditional dependency branches, nested signals, cleanup lifecycles, and `FinalizationRegistry` GC safety):
+
+| Package | `usub` (`src`) | `usub/lite` & `usub/tiny` |
+| --- | --- | --- |
+| `@preact/signals-core` | Zero-config (`.subscribe`) or `api.effect` | `api.effect` |
+| `solid-js` | `api.effect` + `createRoot` + `onCleanup` | `api.effect` + `createRoot` + `onCleanup` |
+| `oby` | `api.effect` | `api.effect` |
+| `sinuous/observable` | `api.effect` + `root` + `cleanup` | `api.effect` + `root` + `cleanup` |
+| `ulive` | `api.effect` | `api.effect` |
+| `usignal` | `api.effect` | `api.effect` |
+| `@vue/reactivity` | `api.effect` + `stop` + `onEffectCleanup` | `api.effect` + `stop` + `onEffectCleanup` |
+| `alien-signals` | `api.effect` | `api.effect` |
+| `s-js` | `api.effect` + `S.root` + `S.cleanup` | `api.effect` + `S.root` + `S.cleanup` |
+| `mobx` | `api.effect` (`autorun`) | `api.effect` (`autorun`) |
+| `@webreflection/signal` | `api.effect` | `api.effect` |
+| `@webreflection/signals` | `api.effect` | `api.effect` |
+| `@webreflection/alien-signals` | `api.effect` | `api.effect` |
+| `nanostores` | Zero-config (`.subscribe`) | `api.any` |
+| `@tanstack/store` | Zero-config (`.subscribe`) | `api.any` |
+| `rxjs` | Zero-config (`.subscribe` / `Symbol.observable`) | `api.any` |
+| `observ` / `observable` | Zero-config (`.set` & `.call`) | `api.any` |
 
 ### Async Iterable
 
