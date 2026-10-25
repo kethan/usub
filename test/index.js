@@ -2,6 +2,13 @@ import t, { is } from 'tst'
 import { sub, api, get } from '../src/index.js'
 import { sub as liteSub, api as liteApi } from '../lite/index.js'
 import { sub as tinySub, api as tinyApi } from '../tiny/index.js'
+import { registerEdgeCaseTests } from './edge-cases.js'
+
+const origApis = new Map([
+  [api, { effect: api.effect, is: api.is, get: api.get }],
+  [liteApi, { effect: liteApi.effect, is: liteApi.is, get: liteApi.get }],
+  [tinyApi, { effect: tinyApi.effect, is: tinyApi.is, get: tinyApi.get }],
+])
 // Replace the loader configuration with:
 // import { register } from "node:module";
 // console.log('register', register);
@@ -370,10 +377,16 @@ function effectOwnedSubs(subImpl, apiObj) {
   return refs;
 }
 const apiDefaults = (apiObj) => {
-  apiObj.effect = f => f();
-  apiObj.is = v => v?.call;
-  apiObj.get = v => v?.();
+  const orig = origApis.get(apiObj);
+  apiObj.effect = orig ? orig.effect : (f => f());
+  apiObj.is = orig ? orig.is : (v => v?.call);
+  apiObj.get = orig ? orig.get : (v => v?.());
   apiObj.cleanup = apiObj.any = undefined;
+};
+const resetAllApis = () => {
+  apiDefaults(api);
+  apiDefaults(liteApi);
+  apiDefaults(tinyApi);
 };
 
 t('effect owned subscription is released (not parked in the registry)', async () => {
@@ -397,6 +410,8 @@ t('subscriptions usub does not own are still parked for the source-gc safety net
   await gc();
   is(arr, ['sub', 'unsub']);
 });
+
+registerEdgeCaseTests({ time, tick, gc, resetAllApis });
 
 async function gc() {
   // gc is async somehow

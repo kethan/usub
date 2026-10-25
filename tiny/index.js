@@ -1,10 +1,10 @@
-const registry = new FinalizationRegistry(unsub => unsub?.());
+const registry = new FinalizationRegistry(unsub => unsub());
 const api = {
   // any: undefined,            // any placeholder
   // cleanup: undefined,        // cleanup placeholder
   effect: f => f(),             // effect placeholder
   is: v => v?.call,             // is placeholder
-  get: v => v?.(),          // get placeholder
+  get: v => v?.(),              // get placeholder
 };
 const get = v => api.is(v) ? get(api.get(v)) : v?.call ? get(v()) : v;
 const is = arg => arg && !!(
@@ -14,12 +14,10 @@ const is = arg => arg && !!(
 );
 
 const sub = (target, next, error, cleanup, stop, unsub, fx) => target && (
-  unsub = (
-    (api.is(target) || target.call) && (
-      api.any?.(target)?.(next, error, cleanup) || (fx = api.effect?.(() => (next(get(target)), api.cleanup?.(cleanup), cleanup)))
-    )) ||
-  (target.then?.(v => (!stop && next(get(v)), cleanup?.()), error)) && (_ => stop = 1),
-  fx || registry.register(target, unsub),
+  unsub = (api.is(target) || target.call)
+    ? api.any?.(target)?.(next, error, cleanup) || (fx = api.effect?.(() => (next?.(get(target)), api.cleanup?.(cleanup), cleanup)))
+    : target.then?.(v => !stop && (next?.(get(v)), cleanup?.()), error) && (_ => stop = 1),
+  fx || unsub && registry.register(target, unsub),
   unsub
 );
 

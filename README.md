@@ -213,12 +213,12 @@ num(30);
 ### Solidjs
 
 ```js
-const { createSignal, createEffect, cleanup } = require("solid-js");
+const { createSignal, createEffect, onCleanup, createRoot } = require("solid-js");
 
-api.effect = createEffect;
+api.effect = (f) => createRoot((dispose) => (createEffect(f), dispose));
 api.is = (v) => v?.name?.includes("readSignal");
 api.get = (v) => v?.();
-api.cleanup = cleanup; //optional
+api.cleanup = onCleanup; //optional
 
 const [val, setVal] = createSignal(0);
 
