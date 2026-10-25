@@ -4,7 +4,7 @@
 	"version": "0.9.0",
 	"type": "module",
 	"source": "./src/index.js",
-	"main": "./dist/index.js",
+	"main": "./dist/index.cjs",
 	"module": "./dist/index.es.js",
 	"unpkg": "./dist/index.min.js",
 	"umd:main": "./dist/index.umd.js",
@@ -12,21 +12,21 @@
 		".": {
 			"browser": "./dist/index.es.js",
 			"umd": "./dist/index.umd.js",
-			"require": "./dist/index.js",
+			"require": "./dist/index.cjs",
 			"import": "./dist/index.es.js",
 			"default": "./dist/index.es.js"
 		},
 		"./lite": {
 			"browser": "./lite/dist/index.es.js",
 			"umd": "./lite/dist/index.umd.js",
-			"require": "./lite/dist/index.js",
+			"require": "./lite/dist/index.cjs",
 			"import": "./lite/dist/index.es.js",
 			"default": "./lite/dist/index.es.js"
 		},
 		"./tiny": {
 			"browser": "./tiny/dist/index.es.js",
 			"umd": "./tiny/dist/index.umd.js",
-			"require": "./tiny/dist/index.js",
+			"require": "./tiny/dist/index.cjs",
 			"import": "./tiny/dist/index.es.js",
 			"default": "./tiny/dist/index.es.js"
 		},
@@ -39,21 +39,33 @@
 	"files": [
 		"dist",
 		"lite",
-		"tiny"
+		"tiny",
+		"src"
 	],
 	"scripts": {
 		"build": "rollup --config rollup.config.js",
-		"test": "node --allow-natives-syntax --expose-gc ./test/index.js"
+		"test": "node --allow-natives-syntax --expose-gc ./test/index.js",
+		"test:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-include='lite/**' --test-coverage-include='tiny/**' --test-coverage-exclude='**/dist/**' --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --allow-natives-syntax --expose-gc ./test/index.js"
 	},
 	"devDependencies": {
 		"@preact/signals-core": "^1.14.4",
 		"@rollup/plugin-terser": "^1.0.0",
+		"@tanstack/store": "^0.11.2",
+		"@vue/reactivity": "^3.5.44",
+		"@webreflection/alien-signals": "^0.4.2",
 		"@webreflection/signal": "^2.1.2",
+		"@webreflection/signals": "^0.2.8",
+		"alien-signals": "^3.2.1",
+		"mobx": "^7.1.1",
+		"nanostores": "^1.5.5",
 		"observ": "^0.2.0",
 		"observable": "^2.1.4",
+		"oby": "^15.1.2",
 		"rollup": "^4.20.0",
 		"rollup-plugin-bundle-size": "^1.0.3",
 		"rxjs": "^7.8.2",
+		"s-js": "^0.4.9",
+		"sinuous": "^0.32.1",
 		"solid-js": "^1.9.17",
 		"tst": "^7.3.0",
 		"ulive": "^1.0.7",
