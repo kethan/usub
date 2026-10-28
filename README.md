@@ -527,7 +527,7 @@ Object.assign(api, {
 
 ## Tested Signal and Store Adapters
 
-All 18 libraries below are continuously tested in [`test/signals.js`](./test/signals.js) and [`test/index.js`](./test/index.js) across `usub`, `usub/lite`, and `usub/tiny` (covering `is()`, recursive `get()`, falsy values, derived/computed memos, conditional dependency switching, nested signals, cleanup lifecycles, idempotent `off()`, and `FinalizationRegistry` GC non-retention):
+All 18 libraries below are continuously tested in [`test/adapters.spec.js`](./test/adapters.spec.js) and [`test/core.spec.js`](./test/core.spec.js) across `usub`, `usub/lite`, and `usub/tiny` (covering `is()`, recursive `get()`, falsy values, derived/computed memos, conditional dependency switching, nested signals, cleanup lifecycles, idempotent `off()`, and `FinalizationRegistry` GC non-retention):
 
 | Package | `usub` (`src`) | `usub/lite` & `usub/tiny` |
 | --- | --- | --- |
@@ -560,8 +560,9 @@ All 18 libraries below are continuously tested in [`test/signals.js`](./test/sig
 
 ```bash
 npm run build          # Build ESM, CJS, UMD, and minified IIFE bundles for usub, lite, and tiny
-npm test               # Run all 1,400+ assertions (with V8 --expose-gc finalization checks)
-npm run test:coverage  # Enforce 100% line, branch, and function coverage across src, lite, and tiny
+npm test               # Build and run the full Vitest suite (including V8 --expose-gc finalization checks)
+npm run test:watch     # Run Vitest in interactive watch mode
+npm run test:coverage  # Enforce 100% statement, branch, function, and line coverage across src, lite, and tiny
 ```
 
 ## License
