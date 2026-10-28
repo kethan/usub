@@ -4,7 +4,7 @@ import vm from "node:vm";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
-import { tick } from "./helpers.js";
+import { gc, tick } from "./helpers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -98,6 +98,42 @@ describe("built bundles (ESM, CJS, UMD, IIFE) & package exports", () => {
 			umdGlobalCtx.globalThis = umdGlobalCtx;
 			vm.runInContext(umdCode, umdGlobalCtx);
 			expect(umdGlobalCtx.usub.get(() => "umd-global")).toBe("umd-global");
+		}
+	});
+
+	it("preserves @__NOINLINE__ isolation in minified & re-minified ESM bundles for live observables", async () => {
+		await ensureBundlesBuilt();
+		const { Subject } = await import("rxjs");
+		const { minify } = await import("terser");
+
+		const esCode = fs.readFileSync(path.join(rootDir, "dist/index.es.js"), "utf8");
+		expect(esCode).toContain("@__NOINLINE__");
+
+		const minCode = fs.readFileSync(path.join(rootDir, "dist/index.min.js"), "utf8");
+		const iifeCtx = vm.createContext({ FinalizationRegistry, Symbol, Promise });
+		vm.runInContext(minCode, iifeCtx);
+
+		const reminifiedEs = (await minify(esCode, { module: true, compress: true, mangle: true })).code;
+		const dataUrl = `data:text/javascript;base64,${Buffer.from(reminifiedEs).toString("base64")}`;
+		const reminMod = await import(dataUrl);
+
+		for (const [label, subFn] of [
+			["dist/index.min.js", iifeCtx.usub.sub],
+			["terser(dist/index.es.js)", reminMod.sub],
+		]) {
+			const liveSubject = new Subject();
+			const refs = [];
+			for (let i = 0; i < 20; i++) {
+				const nextPayload = { n: i };
+				const cleanPayload = { c: i };
+				const dispose = subFn(liveSubject, () => nextPayload, null, () => cleanPayload);
+				refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+				dispose();
+			}
+			await gc();
+			const held = refs.filter((r) => r.deref() !== undefined).length;
+			expect(held, `${label} retained ${held}/${refs.length}`).toBe(0);
+			expect(liveSubject.closed).toBe(false);
 		}
 	});
 });

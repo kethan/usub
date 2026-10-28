@@ -919,7 +919,7 @@ describe("edge cases across src, lite, and tiny", () => {
 			const mockLog = [];
 			;(() => {
 				const mock = { subscribe() { mockLog.push("sub"); return () => mockLog.push("gc-unsub"); } };
-				sub(mock, () => {}, null, null, 1);
+				sub(mock, () => {}, null, null, undefined, undefined, 1);
 			})();
 			await gc();
 			expect(mockLog).toEqual(["sub"]);

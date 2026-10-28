@@ -1,5 +1,7 @@
 const sym = Symbol.observable ||= Symbol('observable');
 const registry = new FinalizationRegistry(unsub => unsub());
+const off = (s, c) => () =>
+    s && (s.call ? s() : s.unsubscribe?.(), s = 0, c.pop()?.());
 const api = {
     // any: undefined,            // any placeholder
     // cleanup: undefined,        // cleanup placeholder
@@ -17,12 +19,13 @@ const is = arg => arg && !!(
     arg[Symbol.asyncIterator]        // Async iterator
 );
 
-const sub = (target, next, error, cleanup, stop, unsub, emit = v => next?.(get(v))) => is(target) && (
+const sub = (target, next, error, cleanup, stop, unsub, fx, emit = v => next?.(get(v))) => is(target) && (
     unsub = (unsub = target[sym]?.() || target).subscribe
-        ? (error = unsub.subscribe(emit, error, _ => (cleanup?.(), cleanup = _)) || 1,
-            _ => error && (error.call ? error() : error.unsubscribe?.(), error = 0, cleanup?.()))
+        ? (cleanup = [cleanup],
+            error = unsub.subscribe(emit, error, () => cleanup.pop()?.()) || 1,
+            /*@__NOINLINE__*/ off(error, cleanup))
         : (api.is(target) || target.call)
-            ? target.set && target.length && target(emit) || api.any?.(target)?.(next, error, cleanup) || (stop = 1, api.effect?.(_ => (emit(target), api.cleanup?.(cleanup), cleanup)))
+            ? target.set && target.length && target(emit) || api.any?.(target)?.(next, error, cleanup) || (fx = 1, api.effect?.(_ => (emit(target), api.cleanup?.(cleanup), cleanup)))
             : (target.then
                 ? target.then(v => stop || (emit(v), cleanup?.()), error)
                 : (async v => {
@@ -30,7 +33,7 @@ const sub = (target, next, error, cleanup, stop, unsub, emit = v => next?.(get(v
                     cleanup?.()
                 })().then(0, error || is),
                 _ => stop = 1),
-    stop || (registry.register(target, unsub), target = 0), // effect owned: never park in registry; clear target slot so non-effect closures never retain target
+    fx || (registry.register(target, unsub), target = 0), // effect owned: never park in registry; clear target slot so non-effect closures never retain target
     unsub
 );
 

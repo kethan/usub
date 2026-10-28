@@ -355,4 +355,44 @@ describe("core subscriptions & finalization", () => {
 		await gc();
 		expect(arr).toEqual(["sub", "unsub"]);
 	});
+
+	it("observable disposer does not retain next/cleanup callbacks while source stays alive", async () => {
+		const { Subject } = await import("rxjs");
+		const { signal: preactSignal } = await import("@preact/signals-core");
+
+		const liveSubject = new Subject();
+		const completedSubject = new Subject();
+		const liveSignal = preactSignal(0);
+		const refs = [];
+
+		for (let i = 0; i < 20; i++) {
+			const nextPayload = { n: i };
+			const cleanPayload = { c: i };
+			const dispose = sub(liveSubject, () => nextPayload, null, () => cleanPayload);
+			refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+			dispose();
+		}
+
+		for (let i = 0; i < 20; i++) {
+			const nextPayload = { n: i };
+			const cleanPayload = { c: i };
+			sub(completedSubject, () => nextPayload, null, () => cleanPayload);
+			refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+		}
+		completedSubject.complete();
+
+		for (let i = 0; i < 20; i++) {
+			const nextPayload = { n: i };
+			const cleanPayload = { c: i };
+			const dispose = sub(liveSignal, () => nextPayload, null, () => cleanPayload);
+			refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+			dispose();
+		}
+
+		await gc();
+		const held = refs.filter((r) => r.deref() !== undefined).length;
+		expect(held, `retained ${held}/${refs.length} observable callback payloads`).toBe(0);
+		// Keep sources strongly reachable across GC
+		expect([liveSubject, completedSubject, liveSignal].length).toBe(3);
+	});
 });
