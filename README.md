@@ -7,13 +7,13 @@
 
 #### `usub/lite`
 
-[![Lite size (brotli)](https://deno.bundlejs.com/badge?q=usub/lite&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub/lite)
-[![Lite size (gzip)](https://deno.bundlejs.com/badge?q=usub/lite&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub/lite)
+[![Lite size (brotli)](https://deno.bundlejs.com/badge?q=usub/lite&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub/lite/dist/index.min.js)
+[![Lite size (gzip)](https://deno.bundlejs.com/badge?q=usub/lite&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub/lite/dist/index.min.js)
 
 #### `usub/tiny`
 
-[![Tiny size (brotli)](https://deno.bundlejs.com/badge?q=usub/tiny&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub/tiny)
-[![Tiny size (gzip)](https://deno.bundlejs.com/badge?q=usub/tiny&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub/tiny)
+[![Tiny size (brotli)](https://deno.bundlejs.com/badge?q=usub/tiny&treeshake=[*]&config={"compression":"brotli"})](https://unpkg.com/usub/tiny/dist/index.min.js)
+[![Tiny size (gzip)](https://deno.bundlejs.com/badge?q=usub/tiny&treeshake=[*]&config={"compression":"gzip"})](https://unpkg.com/usub/tiny/dist/index.min.js)
 
 A tiny, dependency-free universal subscription utility for JavaScript observables, signals, promises, async iterables, and functions.
 
@@ -21,7 +21,7 @@ A tiny, dependency-free universal subscription utility for JavaScript observable
 - **Universal:** One `sub(target, next, error, cleanup)` API across TC39/RxJS Observables, Promises, Async Iterables, `observ`/`observable`, functions, and any Signal or Store library.
 - **Pluggable:** 25 tested reactive adapters (`@volynets/reflex`, `alien-signals`, `@reactively/core`, `@vue/reactivity` 3.5 & 3.6, `anod`, `@zakkster/lite-signal`, `rescript-signals`, `@preact/signals-core`, `s-js`, `@maverick-js/signals`, `oby`, `solid-js`, `sinuous`, `mobx`, `ulive`, `usignal`, `@webreflection/*`, `nanostores`, `@tanstack/store`, `rxjs`, `observ`, `observable`).
 - **Memory-safe:** `FinalizationRegistry` safety net cleans up abandoned external subscriptions when sources are garbage-collected, with isolated disposer/cancellation closures (`/*@__NOINLINE__*/`) so long-lived Observables, Promises, and Async Iterables never retain `next`/`cleanup` callbacks, and without retaining effect-owned signal graphs.
-- **Interoperable:** ESM, CommonJS (`.cjs`), IIFE (`.min.js`), and UMD builds.
+- **Interoperable:** ESM, CommonJS (`.cjs`), IIFE (`.min.js`), UMD builds, and first-class TypeScript declarations (`.d.ts`).
 
 ## Contents
 
@@ -58,9 +58,9 @@ const { sub, is, get, api } = require("usub");
 
 CDN builds (`unpkg`):
 
-- **Full (`usub`):** `https://unpkg.com/usub` (ESM: `https://unpkg.com/usub?module`)
-- **Lite (`usub/lite`):** `https://unpkg.com/usub/lite` (ESM: `https://unpkg.com/usub/lite?module`)
-- **Tiny (`usub/tiny`):** `https://unpkg.com/usub/tiny` (ESM: `https://unpkg.com/usub/tiny?module`)
+- **Full (`usub`):** `https://unpkg.com/usub` (ESM: `https://unpkg.com/usub/dist/index.es.js`)
+- **Lite (`usub/lite`):** `https://unpkg.com/usub/lite/dist/index.min.js` (ESM: `https://unpkg.com/usub/lite/dist/index.es.js`)
+- **Tiny (`usub/tiny`):** `https://unpkg.com/usub/tiny/dist/index.min.js` (ESM: `https://unpkg.com/usub/tiny/dist/index.es.js`)
 
 ## Choosing an Entry Point (`usub` vs `lite` vs `tiny`)
 
@@ -624,7 +624,8 @@ All 25 libraries below (including the full top 11 from [`js-reactivity-benchmark
 
 ```bash
 npm run build          # Build ESM, CJS, UMD, and minified IIFE bundles for usub, lite, and tiny
-npm test               # Build and run the full Vitest suite (including V8 --expose-gc finalization checks)
+npm run typecheck      # Verify TypeScript declarations under Bundler and NodeNext moduleResolution
+npm test               # Build, typecheck, and run the full Vitest suite (including V8 --expose-gc checks)
 npm run test:watch     # Run Vitest in interactive watch mode
 npm run test:coverage  # Enforce 100% statement, branch, function, and line coverage across src, lite, and tiny
 ```

@@ -27,18 +27,31 @@ describe("built bundles (ESM, CJS, UMD, IIFE) & package exports", () => {
 
 		const req = createRequire(import.meta.url);
 		const pkgJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
+		expect(pkgJson.types).toBe("./types/index.d.ts");
+		expect(pkgJson.sideEffects).toBe(false);
+		expect(pkgJson.license).toBe("MIT");
+		expect(pkgJson.scripts.prepack).toBe("npm run build");
+		expect(pkgJson.files).toContain("types");
+		expect(fs.existsSync(path.join(rootDir, "LICENSE"))).toBe(true);
+
 		const targets = [
-			{ label: "root", dir: "dist", pkgSubpath: "usub", exportKey: ".", hasSub: true, hasAsync: true },
-			{ label: "lite", dir: "lite/dist", pkgSubpath: "usub/lite", exportKey: "./lite", hasSub: false, hasAsync: true },
-			{ label: "tiny", dir: "tiny/dist", pkgSubpath: "usub/tiny", exportKey: "./tiny", hasSub: false, hasAsync: false },
+			{ label: "root", dir: "dist", pkgSubpath: "usub", exportKey: ".", typesFile: "types/index.d.ts", hasSub: true, hasAsync: true },
+			{ label: "lite", dir: "lite/dist", pkgSubpath: "usub/lite", exportKey: "./lite", typesFile: "types/lite.d.ts", hasSub: false, hasAsync: true },
+			{ label: "tiny", dir: "tiny/dist", pkgSubpath: "usub/tiny", exportKey: "./tiny", typesFile: "types/tiny.d.ts", hasSub: false, hasAsync: false },
 		];
 
 		for (const item of targets) {
 			const base = path.join(rootDir, item.dir);
+			const exportEntry = pkgJson.exports[item.exportKey];
+
+			// 0. TypeScript declaration export condition ("types" must come first) & file existence
+			expect(Object.keys(exportEntry)[0]).toBe("types");
+			expect(path.resolve(rootDir, exportEntry.types)).toBe(path.join(rootDir, item.typesFile));
+			expect(fs.existsSync(path.join(rootDir, item.typesFile))).toBe(true);
 
 			// 1. ESM bundle & package.json export map verification
 			const esPath = path.join(base, "index.es.js");
-			expect(path.resolve(rootDir, pkgJson.exports[item.exportKey].import)).toBe(esPath);
+			expect(path.resolve(rootDir, exportEntry.import)).toBe(esPath);
 			const esMod = await import(pathToFileURL(esPath).href);
 			expect(typeof esMod.sub).toBe("function");
 			expect(typeof esMod.is).toBe("function");
