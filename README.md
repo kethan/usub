@@ -17,7 +17,7 @@
 
 A tiny, dependency-free universal subscription utility for JavaScript observables, signals, promises, async iterables, and functions.
 
-- **Tiny:** `470 B` gzipped (`355 B` for `usub/lite`, `291 B` for `usub/tiny`), zero runtime dependencies.
+- **Tiny:** `467 B` gzipped (`353 B` for `usub/lite`, `288 B` for `usub/tiny`), zero runtime dependencies.
 - **Universal:** One `sub(target, next, error, cleanup)` API across TC39/RxJS Observables, Promises, Async Iterables, `observ`/`observable`, functions, and any Signal or Store library.
 - **Pluggable:** 25 tested reactive adapters (`@volynets/reflex`, `alien-signals`, `@reactively/core`, `@vue/reactivity` 3.5 & 3.6, `anod`, `@zakkster/lite-signal`, `rescript-signals`, `@preact/signals-core`, `s-js`, `@maverick-js/signals`, `oby`, `solid-js`, `sinuous`, `mobx`, `ulive`, `usignal`, `@webreflection/*`, `nanostores`, `@tanstack/store`, `rxjs`, `observ`, `observable`).
 - **Memory-safe:** `FinalizationRegistry` safety net cleans up abandoned external subscriptions when sources are garbage-collected, with isolated disposer/cancellation closures (`/*@__NOINLINE__*/`) so long-lived Observables, Promises, and Async Iterables never retain `next`/`cleanup` callbacks, and without retaining effect-owned signal graphs.
@@ -68,7 +68,7 @@ All three entry points export `{ sub, is, get, api }` (with **isolated** `api` c
 
 | Capability | `usub` | `usub/lite` | `usub/tiny` |
 | --- | :---: | :---: | :---: |
-| Minified / Gzipped (`.min.js`) | `779 B` / `470 B` | `545 B` / `355 B` | `434 B` / `291 B` |
+| Minified / Gzipped (`.min.js`) | `770 B` / `467 B` | `543 B` / `353 B` | `431 B` / `288 B` |
 | Signals & Memos (`api.effect`, `api.is`, `api.get`, `api.cleanup`) | Yes | Yes | Yes |
 | Custom Observables / Stores (`api.any`) | Yes | Yes | Yes |
 | Functions & Nested Getters (`() => value`) | Yes | Yes | Yes |
@@ -340,7 +340,7 @@ Object.assign(api, {
 
 ## Building a Custom Signal from Scratch
 
-You can pair `usub` (or `usub/tiny` at `291 B` gzipped) with a minimal 20-line custom signal implementation:
+You can pair `usub` (or `usub/tiny` at `288 B` gzipped) with a minimal 20-line custom signal implementation:
 
 ```js
 import assert from "node:assert/strict";
