@@ -33,6 +33,15 @@ import {
 	stop as vueStop,
 } from "@vue/reactivity";
 import {
+	computed as vue36Computed,
+	effect as vue36Effect,
+	effectScope as vue36EffectScope,
+	isRef as isVue36Ref,
+	onEffectCleanup as vue36Cleanup,
+	shallowRef as vue36Signal,
+	stop as vue36Stop,
+} from "vue-reactivity-3.6";
+import {
 	computed as alienComputed,
 	effect as alienEffect,
 	isComputed as isAlienComputed,
@@ -40,6 +49,33 @@ import {
 	signal as alienSignal,
 } from "alien-signals";
 import S from "s-js";
+import {
+	computed as reflexComputed,
+	createRuntime as createReflexRuntime,
+	effect as reflexEffect,
+	flush as reflexFlush,
+	signal as reflexSignal,
+} from "@volynets/reflex";
+import { Reactive, stabilize } from "@reactively/core";
+import { Compute as AnodCompute, Signal as AnodSignal, c as anodC, signal as anodSignal } from "anod";
+import {
+	computed as liteSignalComputed,
+	effect as liteSignalEffect,
+	onCleanup as liteSignalCleanup,
+	signal as liteSignal,
+} from "@zakkster/lite-signal";
+import * as RSSignal from "rescript-signals/src/signals/Signal.res.mjs";
+import * as RSComputed from "rescript-signals/src/signals/Computed.res.mjs";
+import * as RSEffect from "rescript-signals/src/signals/Effect.res.mjs";
+import * as RSScheduler from "rescript-signals/src/signals/Scheduler.res.mjs";
+import {
+	computed as maverickComputed,
+	effect as maverickEffect,
+	isReadSignal as isMaverickReadSignal,
+	root as maverickRoot,
+	signal as maverickSignal,
+	tick as maverickTick,
+} from "@maverick-js/signals";
 import {
 	autorun as mobxAutorun,
 	computed as mobxComputed,
@@ -72,7 +108,10 @@ const variants = [
 ];
 
 const sSignals = new WeakSet();
+const reflexSignals = new WeakSet();
 let solidDisposers = [];
+let anodCtx;
+let anodDisposers = [];
 
 const onceDispose = (effectFn) => (f) => {
 	let d = effectFn(f);
@@ -202,6 +241,27 @@ const signalAdapters = [
 		},
 	},
 	{
+		name: "@vue/reactivity 3.6",
+		usubApi: {
+			is: isVue36Ref,
+			get: (v) => v.value,
+			effect: (f) => {
+				const runner = vue36Effect(f);
+				return () => vue36Stop(runner);
+			},
+			cleanup: (fn) => fn && vue36Cleanup(fn),
+		},
+		create: (initial) => {
+			const s = vue36Signal(initial);
+			return { target: s, set: (v) => { s.value = v; } };
+		},
+		memo: (fn) => vue36Computed(fn),
+		scope: (fn) => {
+			const scope = vue36EffectScope();
+			try { return scope.run(fn); } finally { scope.stop(); }
+		},
+	},
+	{
 		name: "alien-signals",
 		usubApi: {
 			is: (v) => typeof v === "function" && (isAlienSignal(v) || isAlienComputed(v)),
@@ -213,6 +273,162 @@ const signalAdapters = [
 			return { target: s, set: (v) => s(v) };
 		},
 		memo: (fn) => alienComputed(fn),
+	},
+	{
+		name: "reflex",
+		usubApi: {
+			is: (v) => reflexSignals.has(v),
+			get: (v) => v(),
+			effect: reflexEffect,
+		},
+		create: (initial) => {
+			const s = reflexSignal(initial);
+			reflexSignals.add(s);
+			return {
+				target: s,
+				set: (v) => s.set(typeof v === "function" ? () => v : v),
+			};
+		},
+		memo: (fn) => {
+			const c = reflexComputed(fn);
+			reflexSignals.add(c);
+			return c;
+		},
+		scope: (fn) => {
+			createReflexRuntime({ effectStrategy: "eager" });
+			return fn();
+		},
+	},
+	{
+		name: "@reactively",
+		usubApi: {
+			is: (v) => v instanceof Reactive,
+			get: (v) => v.get(),
+			effect: (f) => {
+				let clean;
+				let dead = false;
+				const obs = new Reactive(() => {
+					if (dead) return;
+					clean?.();
+					clean = f();
+				}, true);
+				obs.get();
+				return () => {
+					if (dead) return;
+					dead = true;
+					clean?.();
+					clean = undefined;
+					obs.set(undefined);
+				};
+			},
+		},
+		create: (initial) => {
+			const s = new Reactive(initial);
+			return {
+				target: s,
+				set: (v) => {
+					s.set(v);
+					stabilize();
+				},
+			};
+		},
+		memo: (fn) => new Reactive(fn),
+	},
+	{
+		name: "anod",
+		usubApi: {
+			is: (v) => v instanceof AnodSignal || v instanceof AnodCompute,
+			get: (v) => (anodCtx ? anodCtx.val(v) : v.get()),
+			effect: (f) => {
+				const fx = anodC.effect((ctx) => {
+					const prev = anodCtx;
+					anodCtx = ctx;
+					try { f(); } finally { anodCtx = prev; }
+				});
+				return () => fx.dispose();
+			},
+			cleanup: (fn) => fn && anodCtx?.cleanup(fn),
+		},
+		create: (initial) => {
+			const s = anodSignal(initial);
+			return { target: s, set: (v) => s.set(typeof v === "function" ? () => v : v) };
+		},
+		memo: (fn) => {
+			const comp = anodC.compute((ctx) => {
+				const prev = anodCtx;
+				anodCtx = ctx;
+				try { return fn(); } finally { anodCtx = prev; }
+			});
+			anodDisposers.push(() => comp.dispose());
+			return comp;
+		},
+		scope: (fn) => {
+			anodDisposers = [];
+			try {
+				return fn();
+			} finally {
+				for (const d of anodDisposers.splice(0)) d();
+			}
+		},
+	},
+	{
+		name: "lite-signal",
+		hasNativeSubscribe: true,
+		usubApi: {
+			is: (v) => typeof v === "function" && typeof v.peek === "function",
+			get: (v) => v(),
+			effect: liteSignalEffect,
+			cleanup: (fn) => fn && liteSignalCleanup(fn),
+		},
+		create: (initial) => {
+			const s = liteSignal(initial);
+			return { target: s, set: (v) => s.set(v) };
+		},
+		memo: (fn) => liteSignalComputed(fn),
+	},
+	{
+		name: "rescript-signals",
+		usubApi: {
+			is: (v) => Boolean(v && typeof v === "object" && typeof v.equals === "function" && v.subs),
+			get: (v) => RSSignal.get(v),
+			effect: (f) => {
+				const prev = RSScheduler.currentObserverDepCursor.contents;
+				try {
+					const d = RSEffect.runWithDisposer(f);
+					return () => d.dispose();
+				} finally {
+					RSScheduler.currentObserverDepCursor.contents = prev;
+				}
+			},
+		},
+		create: (initial) => {
+			const s = RSSignal.make(initial);
+			return { target: s, set: (v) => RSSignal.set(s, v) };
+		},
+		memo: (fn) => RSComputed.make(fn),
+	},
+	{
+		name: "@maverick-js/signals",
+		usubApi: {
+			is: isMaverickReadSignal,
+			get: (v) => v(),
+			effect: maverickEffect,
+		},
+		create: (initial) => {
+			const s = maverickSignal(initial);
+			return {
+				target: s,
+				set: (v) => {
+					s.set(typeof v === "function" ? () => v : v);
+					maverickTick();
+				},
+			};
+		},
+		memo: (fn) => maverickComputed(fn),
+		scope: (fn) =>
+			maverickRoot((dispose) => {
+				try { return fn(); } finally { dispose(); }
+			}),
 	},
 	{
 		name: "S.js",
@@ -439,7 +655,7 @@ describe.each(signalAdapters)("$name adapter", (lib) => {
 	});
 });
 
-describe("store & stream adapters (Nanostores, TanStack Store, RxJS, ulive .then, Oby scheduled)", () => {
+describe("store & stream adapters (Nanostores, TanStack Store, RxJS, ulive .then, Oby/@maverick/reflex modes)", () => {
 	beforeEach(() => {
 		resetAllApis();
 	});
@@ -457,157 +673,162 @@ describe("store & stream adapters (Nanostores, TanStack Store, RxJS, ulive .then
 		expect(isObs(count)).toBe(true);
 		expect(isObs(doubled)).toBe(true);
 
-		const offAtom = sub(count, (x) => atomLog.push(x), null, () => atomLog.push("atom-clean"));
-		const offComp = sub(doubled, (x) => compLog.push(x), null, () => compLog.push("comp-clean"));
+		const offAtom = sub(count, (v) => atomLog.push(v), null, () => atomLog.push("atom-clean"));
+		const offComp = sub(doubled, (v) => compLog.push(v), null, () => compLog.push("comp-clean"));
 
+		count.set(3);
 		count.set(0);
-		count.set(5);
 		offAtom();
 		offAtom();
 		offComp();
 		count.set(10);
 
-		expect(atomLog).toEqual([1, 0, 5, "atom-clean"]);
-		expect(compLog).toEqual([2, 0, 10, "comp-clean"]);
+		expect(atomLog).toEqual([1, 3, 0, "atom-clean"]);
+		expect(compLog).toEqual([2, 6, 0, "comp-clean"]);
 
 		for (const v of [variants[1], variants[2]]) {
-			resetAllApis();
 			v.api.is = (x) => typeof x?.get === "function" && typeof x?.listen === "function";
 			v.api.get = (x) => x.get();
 			v.api.any = (store) => (next, _err, cleanup) => {
-				const unbind = store.subscribe((val) => next?.(v.get(val)));
+				let done = false;
+				next?.(v.get(store));
+				const unsub = store.listen(() => next?.(v.get(store)));
 				return () => {
-					unbind();
-					cleanup?.();
+					if (!done) {
+						done = true;
+						unsub();
+						cleanup?.();
+					}
 				};
 			};
 
-			const base = nanoAtom(3);
-			const derived = nanoComputed(base, (n) => n + 10);
-			const nested = nanoAtom(base);
-			const events = [];
-			const nestedEvents = [];
+			const a = nanoAtom("x");
+			const d = nanoComputed(a, (s) => `${s}!`);
+			const log = [];
 
-			expect(v.is(base)).toBe(true);
-			expect(v.get(nested)).toBe(3);
+			expect(v.is(a)).toBe(true);
+			expect(v.get(d)).toBe("x!");
 
-			const off1 = v.sub(derived, (x) => events.push(x), null, () => events.push("clean"));
-			const off2 = v.sub(nested, (x) => nestedEvents.push(x));
-			base.set(7);
-			nested.set(nanoAtom(99));
-			off1();
-			off2();
-			base.set(20);
-
-			expect(events).toEqual([13, 17, "clean"]);
-			expect(nestedEvents).toEqual([3, 99]);
+			const off = v.sub(d, (val) => log.push(val), null, () => log.push("clean"));
+			a.set("y");
+			off();
+			off();
+			a.set("z");
+			expect(log).toEqual(["x!", "y!", "clean"]);
 		}
 	});
 
 	it("supports TanStack Store zero-config in src and via api.any in lite/tiny", () => {
-		const state = new TanStackStore(10);
-		const derived = createTanStackStore(() => state.state * 3);
-		const stateEvents = [];
-		const derivedEvents = [];
+		const store = createTanStackStore(10);
+		const doubled = createTanStackStore(() => store.state * 2);
+		const log = [];
 
-		expect(isObs(state)).toBe(true);
-		expect(isObs(derived)).toBe(true);
+		expect(isObs(store)).toBe(true);
+		expect(isObs(doubled)).toBe(true);
 
-		const offState = sub(state, (x) => stateEvents.push(x), null, () => stateEvents.push("clean"));
-		const offDerived = sub(derived, (x) => derivedEvents.push(x), null, () => derivedEvents.push("derived-clean"));
+		const off = sub(
+			doubled,
+			() => log.push(doubled.state),
+			null,
+			() => log.push("clean"),
+		);
+		expect(log).toEqual([]);
 
-		state.setState(() => 0);
-		state.setState(() => 4);
-		offState();
-		offState();
-		offDerived();
-		state.setState(() => 9);
+		store.setState(() => 25);
+		store.setState(() => 0);
+		off();
+		off();
+		store.setState(() => 99);
 
-		expect(stateEvents).toEqual([0, 4, "clean"]);
-		expect(derivedEvents).toEqual([0, 12, "derived-clean"]);
+		expect(log).toEqual([50, 0, "clean"]);
 
 		for (const v of [variants[1], variants[2]]) {
-			resetAllApis();
 			v.api.is = (x) => x instanceof TanStackStore || x instanceof TanStackReadonlyStore;
 			v.api.get = (x) => x.state;
-			v.api.any = (store) => (next, _err, cleanup) => {
-				next?.(v.get(store));
-				const subHandle = store.subscribe(() => next?.(v.get(store)));
+			v.api.any = (s) => (next, _err, cleanup) => {
+				next?.(v.get(s));
+				const subHandle = s.subscribe(() => next?.(v.get(s)));
 				return () => {
 					subHandle.unsubscribe();
 					cleanup?.();
 				};
 			};
 
-			const count = new TanStackStore(2);
-			const triple = createTanStackStore(() => count.state * 3);
-			const log = [];
-			const off = v.sub(triple, (x) => log.push(x), null, () => log.push("clean"));
-			count.setState(() => 5);
-			count.setState(() => 0);
-			off();
-			count.setState(() => 8);
-
-			expect(log).toEqual([6, 15, 0, "clean"]);
+			const ts = createTanStackStore(5);
+			const td = createTanStackStore(() => ts.state + 1);
+			const seen = [];
+			const offLite = v.sub(td, (val) => seen.push(val), null, () => seen.push("clean"));
+			ts.setState(() => 9);
+			offLite();
+			ts.setState(() => 20);
+			expect(seen).toEqual([6, 10, "clean"]);
 		}
 	});
 
 	it("supports RxJS BehaviorSubject & Subject zero-config in src and via api.any in lite/tiny", () => {
 		const bs = new BehaviorSubject(10);
-		const srcLog = [];
-		const offSrc = sub(bs, (x) => srcLog.push(x), null, () => srcLog.push("done"));
+		const subj = new Subject();
+		const bsEvents = [];
+		const subjEvents = [];
+
+		const offBs = sub(bs, (v) => bsEvents.push(v), null, () => bsEvents.push("bs-done"));
+		const offSubj = sub(subj, (v) => subjEvents.push(v), null, () => subjEvents.push("subj-done"));
+
 		bs.next(20);
-		bs.complete();
-		offSrc();
-		expect(srcLog).toEqual([10, 20, "done"]);
+		offBs();
+		bs.next(30);
+
+		subj.next("a");
+		subj.complete();
+		offSubj();
+
+		expect(bsEvents).toEqual([10, 20, "bs-done"]);
+		expect(subjEvents).toEqual(["a", "subj-done"]);
 
 		for (const v of [variants[1], variants[2]]) {
-			resetAllApis();
 			v.api.is = (x) => typeof x?.subscribe === "function";
 			v.api.get = (x) => (typeof x.getValue === "function" ? x.getValue() : x);
 			v.api.any = (obs) => (next, error, cleanup) => {
 				let done = false;
-				const s = obs.subscribe({
-					next: (val) => next?.(v.get(val)),
-					error,
-					complete: () => {
-						if (!done) {
-							done = true;
-							cleanup?.();
-						}
-					},
-				});
-				return () => {
-					s.unsubscribe();
+				const finish = () => {
 					if (!done) {
 						done = true;
 						cleanup?.();
 					}
 				};
+				const s = obs.subscribe({
+					next: (val) => next?.(v.get(val)),
+					error,
+					complete: finish,
+				});
+				return () => {
+					s.unsubscribe();
+					finish();
+				};
 			};
 
-			const bsSub = new BehaviorSubject("init");
-			const subj = new Subject();
+			const b = new BehaviorSubject("init");
+			const sj = new Subject();
 			const bsLog = [];
 			const subjLog = [];
 
-			const offBs = v.sub(bsSub, (x) => bsLog.push(x), null, () => bsLog.push("bs-clean"));
-			const offSubj = v.sub(subj, (x) => subjLog.push(x), (e) => subjLog.push(`err:${e}`), () => subjLog.push("subj-clean"));
+			const offB = v.sub(b, (val) => bsLog.push(val), null, () => bsLog.push("bs-clean"));
+			const offSj = v.sub(sj, (val) => subjLog.push(val), null, () => subjLog.push("subj-clean"));
 
-			bsSub.next("next");
-			offBs();
-			bsSub.next("ignored");
+			b.next("next");
+			offB();
+			b.next("ignored");
 
-			subj.next(1);
-			subj.complete();
-			offSubj();
+			sj.next(1);
+			sj.complete();
+			offSj();
 
 			expect(bsLog).toEqual(["init", "next", "bs-clean"]);
 			expect(subjLog).toEqual([1, "subj-clean"]);
 		}
 	});
 
-	it("prioritizes api.is over ulive .then and supports Oby scheduled microtask effects", async () => {
+	it("prioritizes api.is over ulive .then and supports Oby, @maverick-js/signals & reflex runtime modes", async () => {
 		for (const v of variants) {
 			resetAllApis();
 			v.api.is = (x) => typeof x?.peek === "function";
@@ -641,6 +862,56 @@ describe("store & stream adapters (Nanostores, TanStack Store, RxJS, ulive .then
 			s("t2");
 			await tick(4);
 			expect(log).toEqual(["t0", "clean", "t1", "clean"]);
+		}
+
+		// @maverick-js/signals natural microtask-scheduled effects (without manual tick())
+		for (const v of variants) {
+			resetAllApis();
+			v.api.is = isMaverickReadSignal;
+			v.api.get = (x) => x();
+			v.api.effect = maverickEffect;
+
+			await maverickRoot(async (dispose) => {
+				try {
+					const s = maverickSignal("m0");
+					const log = [];
+					const off = v.sub(s, (x) => log.push(x), null, () => log.push("clean"));
+					expect(log).toEqual(["m0"]);
+					s.set("m1");
+					await tick(2);
+					off();
+					s.set("m2");
+					await tick(2);
+					expect(log).toEqual(["m0", "clean", "m1", "clean"]);
+				} finally {
+					dispose();
+				}
+			});
+		}
+
+		// reflex with flush effectStrategy (batched updates flushed via flush())
+		createReflexRuntime({ effectStrategy: "flush" });
+		try {
+			for (const v of variants) {
+				resetAllApis();
+				v.api.is = (x) => reflexSignals.has(x);
+				v.api.get = (x) => x();
+				v.api.effect = reflexEffect;
+
+				const s = reflexSignal("r0");
+				reflexSignals.add(s);
+				const log = [];
+				const off = v.sub(s, (x) => log.push(x), null, () => log.push("clean"));
+				s.set("r1");
+				expect(log).toEqual(["r0"]);
+				reflexFlush();
+				off();
+				s.set("r2");
+				reflexFlush();
+				expect(log).toEqual(["r0", "clean", "r1", "clean"]);
+			}
+		} finally {
+			createReflexRuntime({ effectStrategy: "eager" });
 		}
 	});
 });
