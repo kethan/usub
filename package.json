@@ -1,15 +1,18 @@
 {
 	"name": "usub",
 	"description": "Subscribe to any reactive sources",
-	"version": "0.11.0",
+	"version": "0.12.0",
 	"type": "module",
 	"source": "./src/index.js",
+	"types": "./types/index.d.ts",
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.es.js",
 	"unpkg": "./dist/index.min.js",
 	"umd:main": "./dist/index.umd.js",
+	"sideEffects": false,
 	"exports": {
 		".": {
+			"types": "./types/index.d.ts",
 			"browser": "./dist/index.es.js",
 			"umd": "./dist/index.umd.js",
 			"require": "./dist/index.cjs",
@@ -17,6 +20,7 @@
 			"default": "./dist/index.es.js"
 		},
 		"./lite": {
+			"types": "./types/lite.d.ts",
 			"browser": "./lite/dist/index.es.js",
 			"umd": "./lite/dist/index.umd.js",
 			"require": "./lite/dist/index.cjs",
@@ -24,6 +28,7 @@
 			"default": "./lite/dist/index.es.js"
 		},
 		"./tiny": {
+			"types": "./types/tiny.d.ts",
 			"browser": "./tiny/dist/index.es.js",
 			"umd": "./tiny/dist/index.umd.js",
 			"require": "./tiny/dist/index.cjs",
@@ -40,13 +45,16 @@
 		"dist",
 		"lite",
 		"tiny",
-		"src"
+		"src",
+		"types"
 	],
 	"scripts": {
-		"build": "rollup --config rollup.config.js",
-		"test": "npm run build && vitest --run",
+		"build": "node -e \"import('node:fs').then(f=>['dist','lite/dist','tiny/dist'].forEach(d=>f.rmSync(d,{recursive:true,force:true})))\" && rollup --config rollup.config.js",
+		"test": "npm run build && npm run typecheck && vitest --run",
+		"typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.nodenext.json",
 		"test:watch": "vitest",
-		"test:coverage": "vitest --run --coverage"
+		"test:coverage": "vitest --run --coverage",
+		"prepack": "npm run build"
 	},
 	"devDependencies": {
 		"@maverick-js/signals": "^6.0.0",
@@ -77,6 +85,7 @@
 		"s-js": "^0.4.9",
 		"sinuous": "^0.32.1",
 		"solid-js": "^1.9.17",
+		"typescript": "^7.0.2",
 		"ulive": "^1.0.7",
 		"usignal": "^0.10.0",
 		"vitest": "^5.0.5",
@@ -98,7 +107,7 @@
 		"solidjs"
 	],
 	"author": "Kethan Surana",
-	"license": "ISC",
+	"license": "MIT",
 	"bugs": {
 		"url": "https://github.com/kethan/usub/issues"
 	},
