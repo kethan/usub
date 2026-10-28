@@ -436,6 +436,15 @@ describe("edge cases across src, lite, and tiny", () => {
 			voidObserv.set = () => {};
 			sub(voidObserv, (x) => arr.push(x), null, () => arr.push("clean"));
 			expect(arr).toEqual(["read-val"]);
+
+			// Zero-arg callable signal getter with `.set` (reflex / @maverick-js/signals shape) skips observ branch
+			const zeroArgCalls = [];
+			const zeroArgSig = (...args) => (zeroArgCalls.push(args.length), () => "nested-fn-val");
+			zeroArgSig.set = () => {};
+			const sigEvents = [];
+			sub(zeroArgSig, (x) => sigEvents.push(x));
+			expect(zeroArgCalls).toEqual([0]);
+			expect(sigEvents).toEqual(["nested-fn-val"]);
 		}
 
 		{

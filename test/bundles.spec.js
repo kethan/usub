@@ -4,7 +4,7 @@ import vm from "node:vm";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
-import { tick } from "./helpers.js";
+import { gc, tick } from "./helpers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -98,6 +98,81 @@ describe("built bundles (ESM, CJS, UMD, IIFE) & package exports", () => {
 			umdGlobalCtx.globalThis = umdGlobalCtx;
 			vm.runInContext(umdCode, umdGlobalCtx);
 			expect(umdGlobalCtx.usub.get(() => "umd-global")).toBe("umd-global");
+		}
+	});
+
+	it("preserves @__NOINLINE__ isolation in minified & re-minified ESM bundles across root, lite, and tiny", async () => {
+		await ensureBundlesBuilt();
+		const { Subject } = await import("rxjs");
+		const { minify } = await import("terser");
+
+		const targets = [
+			{ label: "root", dir: "dist", hasSub: true, hasAsync: true },
+			{ label: "lite", dir: "lite/dist", hasSub: false, hasAsync: true },
+			{ label: "tiny", dir: "tiny/dist", hasSub: false, hasAsync: false },
+		];
+
+		for (const item of targets) {
+			const base = path.join(rootDir, item.dir);
+			const esCode = fs.readFileSync(path.join(base, "index.es.js"), "utf8");
+			expect(esCode).toContain("@__NOINLINE__");
+
+			const minCode = fs.readFileSync(path.join(base, "index.min.js"), "utf8");
+			const iifeCtx = vm.createContext({ FinalizationRegistry, Symbol, Promise });
+			vm.runInContext(minCode, iifeCtx);
+
+			const reminifiedEs = (await minify(esCode, { module: true, compress: true, mangle: true })).code;
+			const dataUrl = `data:text/javascript;base64,${Buffer.from(reminifiedEs).toString("base64")}`;
+			const reminMod = await import(dataUrl);
+
+			for (const [label, subFn] of [
+				[`${item.dir}/index.min.js`, iifeCtx.usub.sub],
+				[`terser(${item.dir}/index.es.js)`, reminMod.sub],
+			]) {
+				const liveSubject = item.hasSub ? new Subject() : null;
+				const livePromise = Promise.resolve("cached");
+				const liveIter = item.hasAsync
+					? {
+							async *[Symbol.asyncIterator]() {
+								yield 1;
+								yield 2;
+							},
+						}
+					: null;
+				const refs = [];
+
+				if (liveSubject) {
+					for (let i = 0; i < 20; i++) {
+						const nextPayload = { n: i };
+						const cleanPayload = { c: i };
+						const dispose = subFn(liveSubject, () => nextPayload, null, () => cleanPayload);
+						refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+						dispose();
+					}
+				}
+
+				for (let i = 0; i < 20; i++) {
+					const nextPayload = { n: i };
+					const cleanPayload = { c: i };
+					subFn(livePromise, () => nextPayload, null, () => cleanPayload);
+					refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+				}
+
+				if (liveIter) {
+					for (let i = 0; i < 20; i++) {
+						const nextPayload = { n: i };
+						const cleanPayload = { c: i };
+						subFn(liveIter, () => nextPayload, null, () => cleanPayload);
+						refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+					}
+				}
+
+				await tick(4);
+				await gc();
+				const held = refs.filter((r) => r.deref() !== undefined).length;
+				expect(held, `${label} retained ${held}/${refs.length}`).toBe(0);
+				expect([liveSubject, livePromise, liveIter].length).toBe(3);
+			}
 		}
 	});
 });

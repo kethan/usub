@@ -1,7 +1,7 @@
 {
 	"name": "usub",
 	"description": "Subscribe to any reactive sources",
-	"version": "0.10.0",
+	"version": "0.11.0",
 	"type": "module",
 	"source": "./src/index.js",
 	"main": "./dist/index.cjs",
@@ -49,20 +49,28 @@
 		"test:coverage": "vitest --run --coverage"
 	},
 	"devDependencies": {
+		"@maverick-js/signals": "^6.0.0",
 		"@preact/signals-core": "^1.14.4",
+		"@reactively/core": "^0.0.8",
+		"@rescript/runtime": "^12.3.1",
 		"@rollup/plugin-terser": "^1.0.0",
 		"@tanstack/store": "^0.11.2",
 		"@vitest/coverage-v8": "^5.0.5",
+		"@volynets/reflex": "^3.0.2",
+		"@volynets/reflex-runtime": "^1.2.0",
 		"@vue/reactivity": "^3.5.44",
 		"@webreflection/alien-signals": "^0.4.2",
 		"@webreflection/signal": "^2.1.2",
 		"@webreflection/signals": "^0.2.8",
+		"@zakkster/lite-signal": "^1.5.2",
 		"alien-signals": "^3.2.1",
+		"anod": "^0.9.1",
 		"mobx": "^7.1.1",
 		"nanostores": "^1.5.5",
 		"observ": "^0.2.0",
 		"observable": "^2.1.4",
 		"oby": "^15.1.2",
+		"rescript-signals": "^3.2.0",
 		"rollup": "^4.20.0",
 		"rollup-plugin-bundle-size": "^1.0.3",
 		"rxjs": "^7.8.2",
@@ -71,7 +79,8 @@
 		"solid-js": "^1.9.17",
 		"ulive": "^1.0.7",
 		"usignal": "^0.10.0",
-		"vitest": "^5.0.5"
+		"vitest": "^5.0.5",
+		"vue-reactivity-3.6": "npm:@vue/reactivity@^3.6.0-rc.12"
 	},
 	"keywords": [
 		"rxjs",

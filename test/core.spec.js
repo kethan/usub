@@ -355,4 +355,200 @@ describe("core subscriptions & finalization", () => {
 		await gc();
 		expect(arr).toEqual(["sub", "unsub"]);
 	});
+
+	it("observable disposer does not retain next/cleanup callbacks while source stays alive", async () => {
+		const { Subject } = await import("rxjs");
+		const { signal: preactSignal } = await import("@preact/signals-core");
+
+		const liveSubject = new Subject();
+		const completedSubject = new Subject();
+		const liveSignal = preactSignal(0);
+		const refs = [];
+
+		for (let i = 0; i < 20; i++) {
+			const nextPayload = { n: i };
+			const cleanPayload = { c: i };
+			const dispose = sub(liveSubject, () => nextPayload, null, () => cleanPayload);
+			refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+			dispose();
+		}
+
+		for (let i = 0; i < 20; i++) {
+			const nextPayload = { n: i };
+			const cleanPayload = { c: i };
+			sub(completedSubject, () => nextPayload, null, () => cleanPayload);
+			refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+		}
+		completedSubject.complete();
+
+		for (let i = 0; i < 20; i++) {
+			const nextPayload = { n: i };
+			const cleanPayload = { c: i };
+			const dispose = sub(liveSignal, () => nextPayload, null, () => cleanPayload);
+			refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+			dispose();
+		}
+
+		await gc();
+		const held = refs.filter((r) => r.deref() !== undefined).length;
+		expect(held, `retained ${held}/${refs.length} observable callback payloads`).toBe(0);
+		// Keep sources strongly reachable across GC
+		expect([liveSubject, completedSubject, liveSignal].length).toBe(3);
+	});
+
+	it("promise & async-iterator cancellation closures do not retain callbacks while sources stay alive", async () => {
+		for (const [name, impl, hasAsync] of [
+			["src", sub, true],
+			["lite", liteSub, true],
+			["tiny", tinySub, false],
+		]) {
+			const liveResolved = Promise.resolve("cached-ok");
+			const liveRejected = Promise.reject(new Error("cached-err"));
+			liveRejected.catch(() => {});
+
+			let resolveCancelled;
+			const liveCancelledPromise = new Promise((ok) => {
+				resolveCancelled = ok;
+			});
+
+			const refs = [];
+			const delivered = [];
+			const errors = [];
+
+			// 1. Resolved promise stays alive (20 subscriptions with next + cleanup payloads)
+			for (let i = 0; i < 20; i++) {
+				const nextPayload = { n: i };
+				const cleanPayload = { c: i };
+				impl(
+					liveResolved,
+					(v) => {
+						delivered.push(v);
+						return nextPayload;
+					},
+					null,
+					() => cleanPayload,
+				);
+				refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+			}
+
+			// 2. Rejected promise stays alive (20 subscriptions with next + error + cleanup payloads)
+			for (let i = 0; i < 20; i++) {
+				const nextPayload = { n: i };
+				const errPayload = { e: i };
+				const cleanPayload = { c: i };
+				impl(
+					liveRejected,
+					() => nextPayload,
+					(e) => {
+						errors.push(e.message);
+						return errPayload;
+					},
+					() => cleanPayload,
+				);
+				refs.push(new WeakRef(nextPayload), new WeakRef(errPayload), new WeakRef(cleanPayload));
+			}
+
+			// 3. Pending promise cancelled via dispose() before resolving, then resolved while staying alive
+			const cancelledEvents = [];
+			for (let i = 0; i < 20; i++) {
+				const nextPayload = { n: i };
+				const cleanPayload = { c: i };
+				const dispose = impl(
+					liveCancelledPromise,
+					(v) => {
+						cancelledEvents.push(v);
+						return nextPayload;
+					},
+					null,
+					() => {
+						cancelledEvents.push("clean");
+						return cleanPayload;
+					},
+				);
+				dispose();
+				dispose(); // idempotent double-cancel
+				refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+			}
+			resolveCancelled("after-cancel");
+
+			// 4. Unreachable unsettled promise triggers FinalizationRegistry cancel(stop) cleanly
+			;(() => {
+				const ephemeral = new Promise(() => {});
+				impl(ephemeral, () => {});
+			})();
+
+			let liveCompletedIter;
+			let liveCancelledIter;
+			let releaseIterGate;
+
+			if (hasAsync) {
+				liveCompletedIter = {
+					async *[Symbol.asyncIterator]() {
+						yield "a";
+						yield "b";
+					},
+				};
+				const iterGate = new Promise((ok) => {
+					releaseIterGate = ok;
+				});
+				liveCancelledIter = {
+					async *[Symbol.asyncIterator]() {
+						yield "first";
+						await iterGate;
+						yield "second-skipped";
+					},
+				};
+
+				// 5. Completed async iterable stays alive
+				for (let i = 0; i < 20; i++) {
+					const nextPayload = { n: i };
+					const cleanPayload = { c: i };
+					impl(liveCompletedIter, () => nextPayload, null, () => cleanPayload);
+					refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+				}
+
+				// 6. Mid-stream cancelled async iterable stays alive
+				const midStreamSeen = [];
+				const midDisposers = [];
+				for (let i = 0; i < 20; i++) {
+					const nextPayload = { n: i };
+					const cleanPayload = { c: i };
+					const dispose = impl(
+						liveCancelledIter,
+						(v) => {
+							midStreamSeen.push(v);
+							return nextPayload;
+						},
+						null,
+						() => {
+							midStreamSeen.push("clean");
+							return cleanPayload;
+						},
+					);
+					midDisposers.push(dispose);
+					refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+				}
+				await tick(3);
+				expect(midStreamSeen.length).toBe(20);
+				for (const d of midDisposers) {
+					d();
+					d();
+				}
+				releaseIterGate();
+				await tick(4);
+				expect(midStreamSeen.length).toBe(20);
+			}
+
+			await tick(4);
+			expect(delivered.length).toBe(20);
+			expect(errors.length).toBe(20);
+			expect(cancelledEvents).toEqual([]);
+
+			await gc();
+			const held = refs.filter((r) => r.deref() !== undefined).length;
+			expect(held, `${name} retained ${held}/${refs.length} promise/async-iterator payloads`).toBe(0);
+			// Keep all live sources strongly reachable across GC
+			expect([liveResolved, liveRejected, liveCancelledPromise, liveCompletedIter, liveCancelledIter].length).toBe(5);
+		}
+	});
 });

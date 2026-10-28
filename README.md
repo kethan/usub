@@ -17,10 +17,10 @@
 
 A tiny, dependency-free universal subscription utility for JavaScript observables, signals, promises, async iterables, and functions.
 
-- **Tiny:** `435 B` gzipped (`340 B` for `usub/lite`, `271 B` for `usub/tiny`), zero runtime dependencies.
+- **Tiny:** `467 B` gzipped (`353 B` for `usub/lite`, `288 B` for `usub/tiny`), zero runtime dependencies.
 - **Universal:** One `sub(target, next, error, cleanup)` API across TC39/RxJS Observables, Promises, Async Iterables, `observ`/`observable`, functions, and any Signal or Store library.
-- **Pluggable:** 18 tested reactive adapters (`@preact/signals-core`, `solid-js`, `@vue/reactivity`, `alien-signals`, `oby`, `sinuous`, `s-js`, `mobx`, `ulive`, `usignal`, `@webreflection/*`, `nanostores`, `@tanstack/store`, `rxjs`, `observ`, `observable`).
-- **Memory-safe:** `FinalizationRegistry` safety net cleans up abandoned external subscriptions when sources are garbage-collected, without retaining effect-owned signal graphs.
+- **Pluggable:** 25 tested reactive adapters (`@volynets/reflex`, `alien-signals`, `@reactively/core`, `@vue/reactivity` 3.5 & 3.6, `anod`, `@zakkster/lite-signal`, `rescript-signals`, `@preact/signals-core`, `s-js`, `@maverick-js/signals`, `oby`, `solid-js`, `sinuous`, `mobx`, `ulive`, `usignal`, `@webreflection/*`, `nanostores`, `@tanstack/store`, `rxjs`, `observ`, `observable`).
+- **Memory-safe:** `FinalizationRegistry` safety net cleans up abandoned external subscriptions when sources are garbage-collected, with isolated disposer/cancellation closures (`/*@__NOINLINE__*/`) so long-lived Observables, Promises, and Async Iterables never retain `next`/`cleanup` callbacks, and without retaining effect-owned signal graphs.
 - **Interoperable:** ESM, CommonJS (`.cjs`), IIFE (`.min.js`), and UMD builds.
 
 ## Contents
@@ -68,7 +68,7 @@ All three entry points export `{ sub, is, get, api }` (with **isolated** `api` c
 
 | Capability | `usub` | `usub/lite` | `usub/tiny` |
 | --- | :---: | :---: | :---: |
-| Minified / Gzipped (`.min.js`) | `725 B` / `435 B` | `519 B` / `340 B` | `411 B` / `271 B` |
+| Minified / Gzipped (`.min.js`) | `770 B` / `467 B` | `543 B` / `353 B` | `431 B` / `288 B` |
 | Signals & Memos (`api.effect`, `api.is`, `api.get`, `api.cleanup`) | Yes | Yes | Yes |
 | Custom Observables / Stores (`api.any`) | Yes | Yes | Yes |
 | Functions & Nested Getters (`() => value`) | Yes | Yes | Yes |
@@ -262,7 +262,7 @@ Dispatch precedence in `usub`:
 
 1. `[Symbol.observable]()?.subscribe` / `target.subscribe`
 2. `api.is(target) || typeof target === "function"`:
-   - `observ` / `observable` (`target.set && target(stop, emit)`)
+   - `observ` / `observable` (`target.set && target.length && target(emit)`)
    - `api.any?.(target)?.(next, error, cleanup)`
    - `api.effect?.(() => (emit(target), api.cleanup?.(cleanup), cleanup))`
 3. `target.then` (Promise / thenable)
@@ -340,7 +340,7 @@ Object.assign(api, {
 
 ## Building a Custom Signal from Scratch
 
-You can pair `usub` (or `usub/tiny` at `271 B` gzipped) with a minimal 20-line custom signal implementation:
+You can pair `usub` (or `usub/tiny` at `288 B` gzipped) with a minimal 20-line custom signal implementation:
 
 ```js
 import assert from "node:assert/strict";
@@ -523,23 +523,86 @@ Object.assign(api, {
 	get: (v) => v.value,
 	effect: (f) => { let d = effect(f); return () => (d?.(), d = null); },
 });
+
+// @volynets/reflex
+import { signal, computed, effect, createRuntime } from "@volynets/reflex";
+createRuntime({ effectStrategy: "eager" }); // or call flush() after writes
+const reflexNodes = new WeakSet();
+Object.assign(api, { is: (v) => reflexNodes.has(v), get: (v) => v(), effect });
+
+// @reactively/core
+import { Reactive, stabilize } from "@reactively/core";
+Object.assign(api, {
+	is: (v) => v instanceof Reactive,
+	get: (v) => v.get(),
+	effect: (f) => {
+		let clean, dead = false;
+		const obs = new Reactive(() => { if (!dead) { clean?.(); clean = f(); } }, true);
+		obs.get();
+		return () => { if (!dead) { dead = true; clean?.(); clean = undefined; obs.set(undefined); } };
+	},
+});
+
+// anod
+import { Signal, Compute, c } from "anod";
+let anodCtx;
+Object.assign(api, {
+	is: (v) => v instanceof Signal || v instanceof Compute,
+	get: (v) => (anodCtx ? anodCtx.val(v) : v.get()),
+	effect: (f) => {
+		const fx = c.effect((ctx) => {
+			const prev = anodCtx; anodCtx = ctx;
+			try { f(); } finally { anodCtx = prev; }
+		});
+		return () => fx.dispose();
+	},
+	cleanup: (fn) => fn && anodCtx?.cleanup(fn),
+});
+
+// @zakkster/lite-signal (zero-config in usub via .subscribe; api setup for lite/tiny)
+import { effect as liteEffect, onCleanup as liteCleanup } from "@zakkster/lite-signal";
+Object.assign(api, {
+	is: (v) => typeof v === "function" && typeof v.peek === "function",
+	get: (v) => v(),
+	effect: liteEffect,
+	cleanup: (fn) => fn && liteCleanup(fn),
+});
+
+// rescript-signals
+import * as RSSignal from "rescript-signals/src/signals/Signal.res.mjs";
+import * as RSEffect from "rescript-signals/src/signals/Effect.res.mjs";
+Object.assign(api, {
+	is: (v) => Boolean(v && typeof v === "object" && typeof v.equals === "function" && v.subs),
+	get: (v) => RSSignal.get(v),
+	effect: (f) => { const d = RSEffect.runWithDisposer(f); return () => d.dispose(); },
+});
+
+// @maverick-js/signals
+import { effect as maverickEffect, isReadSignal } from "@maverick-js/signals";
+Object.assign(api, { is: isReadSignal, get: (v) => v(), effect: maverickEffect });
 ```
 
 ## Tested Signal and Store Adapters
 
-All 18 libraries below are continuously tested in [`test/adapters.spec.js`](./test/adapters.spec.js) and [`test/core.spec.js`](./test/core.spec.js) across `usub`, `usub/lite`, and `usub/tiny` (covering `is()`, recursive `get()`, falsy values, derived/computed memos, conditional dependency switching, nested signals, cleanup lifecycles, idempotent `off()`, and `FinalizationRegistry` GC non-retention):
+All 25 libraries below (including the full top 11 from [`js-reactivity-benchmark`](https://volynetstyle.github.io/js-reactivity-benchmark/)) are continuously tested in [`test/adapters.spec.js`](./test/adapters.spec.js) and [`test/core.spec.js`](./test/core.spec.js) across `usub`, `usub/lite`, and `usub/tiny` (covering `is()`, recursive `get()`, falsy values, derived/computed memos, conditional dependency switching, nested signals, cleanup lifecycles, idempotent `off()`, and `FinalizationRegistry` GC non-retention):
 
 | Package | `usub` (`src`) | `usub/lite` & `usub/tiny` |
 | --- | --- | --- |
+| `@volynets/reflex` | `api.effect` | `api.effect` |
+| `alien-signals` | `api.effect` | `api.effect` |
+| `@reactively/core` | `api.effect` (`new Reactive(fn, true)`) | `api.effect` (`new Reactive(fn, true)`) |
+| `@vue/reactivity` (`3.5` & `3.6 RC`) | `api.effect` + `stop` + `onEffectCleanup` | `api.effect` + `stop` + `onEffectCleanup` |
+| `anod` | `api.effect` (`c.effect` + `ctx.val` + `ctx.cleanup`) | `api.effect` (`c.effect` + `ctx.val` + `ctx.cleanup`) |
+| `@zakkster/lite-signal` | Zero-config (`.subscribe`) or `api.effect` | `api.effect` + `onCleanup` |
+| `rescript-signals` | `api.effect` (`Effect.runWithDisposer`) | `api.effect` (`Effect.runWithDisposer`) |
 | `@preact/signals-core` | Zero-config (`.subscribe`) or `api.effect` | `api.effect` |
-| `solid-js` | `api.effect` + `createRoot` + `onCleanup` | `api.effect` + `createRoot` + `onCleanup` |
+| `s-js` | `api.effect` + `S.root` + `S.cleanup` | `api.effect` + `S.root` + `S.cleanup` |
+| `@maverick-js/signals` | `api.effect` | `api.effect` |
 | `oby` | `api.effect` | `api.effect` |
+| `solid-js` | `api.effect` + `createRoot` + `onCleanup` | `api.effect` + `createRoot` + `onCleanup` |
 | `sinuous/observable` | `api.effect` + `root` + `cleanup` | `api.effect` + `root` + `cleanup` |
 | `ulive` | `api.effect` | `api.effect` |
 | `usignal` | `api.effect` | `api.effect` |
-| `@vue/reactivity` | `api.effect` + `stop` + `onEffectCleanup` | `api.effect` + `stop` + `onEffectCleanup` |
-| `alien-signals` | `api.effect` | `api.effect` |
-| `s-js` | `api.effect` + `S.root` + `S.cleanup` | `api.effect` + `S.root` + `S.cleanup` |
 | `mobx` | `api.effect` (`autorun`) | `api.effect` (`autorun`) |
 | `@webreflection/signal` | `api.effect` | `api.effect` |
 | `@webreflection/signals` | `api.effect` | `api.effect` |
@@ -547,13 +610,14 @@ All 18 libraries below are continuously tested in [`test/adapters.spec.js`](./te
 | `nanostores` | Zero-config (`.subscribe`) | `api.any` |
 | `@tanstack/store` | Zero-config (`.subscribe`) | `api.any` |
 | `rxjs` | Zero-config (`.subscribe` / `Symbol.observable`) | `api.any` |
-| `observ` / `observable` | Zero-config (`.set` & `.call`) | `api.any` |
+| `observ` / `observable` | Zero-config (`.set` & `.length` + `.call`) | `api.any` |
 
 ## Finalization and Memory Safety
 
 `usub` uses `FinalizationRegistry` carefully to prevent memory leaks without pinning reactive graphs:
 
 - **External subscriptions** (`.subscribe`, `observ`, `api.any`, Promises, Async Iterables) are registered with `FinalizationRegistry` so if a source object becomes unreachable before `off()` is called, its teardown still runs automatically.
+- **Isolated disposer & cancellation scopes:** Both the observable disposer (`off(s, c)` in `usub`) and the promise / async-iterator cancellation closure (`cancel(stop)` across `usub`, `usub/lite`, and `usub/tiny`) are module-level helpers marked `/*@__NOINLINE__*/` so `FinalizationRegistry`-held functions never capture `sub()`'s lexical context or retain `next`/`cleanup` callbacks while long-lived sources remain reachable.
 - **Effect-owned signal subscriptions** (`api.effect`) are **never** parked in `FinalizationRegistry`, because an effect disposer references the effect's dependency nodes (which reach back to the signal) and would otherwise prevent garbage collection. Always call the returned `off()` disposer when tearing down long-lived signal subscriptions, or create them inside your framework's owner/scope lifecycle.
 
 ## Development

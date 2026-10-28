@@ -1,4 +1,5 @@
 const registry = new FinalizationRegistry(unsub => unsub());
+const cancel = state => _ => state[0] = 1;
 const api = {
   // any: undefined,            // any placeholder
   // cleanup: undefined,        // cleanup placeholder
@@ -8,15 +9,15 @@ const api = {
 };
 const get = v => api.is(v) ? get(api.get(v)) : v?.call ? get(v()) : v;
 const is = arg => arg && !!(
-  arg.then ||                      // Promise
   api.is(arg) ||                   // Custom observable check
-  arg.call                         // Function
+  arg.call ||                      // Function
+  arg.then                         // Promise
 );
 
 const sub = (target, next, error, cleanup, stop, unsub, fx) => target && (
   unsub = (api.is(target) || target.call)
-    ? api.any?.(target)?.(next, error, cleanup) || (fx = api.effect?.(() => (next?.(get(target)), api.cleanup?.(cleanup), cleanup)))
-    : target.then?.(v => !stop && (next?.(get(v)), cleanup?.()), error) && (_ => stop = 1),
+    ? api.any?.(target)?.(next, error, cleanup) || (fx = api.effect?.(_ => (next?.(get(target)), api.cleanup?.(cleanup), cleanup)))
+    : (stop = [stop], target.then?.(v => stop[0] || (next?.(get(v)), cleanup?.()), error) && /*@__NOINLINE__*/ cancel(stop)),
   fx || unsub && registry.register(target, unsub),
   unsub
 );
