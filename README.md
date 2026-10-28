@@ -17,10 +17,10 @@
 
 A tiny, dependency-free universal subscription utility for JavaScript observables, signals, promises, async iterables, and functions.
 
-- **Tiny:** `435 B` gzipped (`340 B` for `usub/lite`, `271 B` for `usub/tiny`), zero runtime dependencies.
+- **Tiny:** `470 B` gzipped (`355 B` for `usub/lite`, `291 B` for `usub/tiny`), zero runtime dependencies.
 - **Universal:** One `sub(target, next, error, cleanup)` API across TC39/RxJS Observables, Promises, Async Iterables, `observ`/`observable`, functions, and any Signal or Store library.
 - **Pluggable:** 25 tested reactive adapters (`@volynets/reflex`, `alien-signals`, `@reactively/core`, `@vue/reactivity` 3.5 & 3.6, `anod`, `@zakkster/lite-signal`, `rescript-signals`, `@preact/signals-core`, `s-js`, `@maverick-js/signals`, `oby`, `solid-js`, `sinuous`, `mobx`, `ulive`, `usignal`, `@webreflection/*`, `nanostores`, `@tanstack/store`, `rxjs`, `observ`, `observable`).
-- **Memory-safe:** `FinalizationRegistry` safety net cleans up abandoned external subscriptions when sources are garbage-collected, without retaining effect-owned signal graphs.
+- **Memory-safe:** `FinalizationRegistry` safety net cleans up abandoned external subscriptions when sources are garbage-collected, with isolated disposer/cancellation closures (`/*@__NOINLINE__*/`) so long-lived Observables, Promises, and Async Iterables never retain `next`/`cleanup` callbacks, and without retaining effect-owned signal graphs.
 - **Interoperable:** ESM, CommonJS (`.cjs`), IIFE (`.min.js`), and UMD builds.
 
 ## Contents
@@ -68,7 +68,7 @@ All three entry points export `{ sub, is, get, api }` (with **isolated** `api` c
 
 | Capability | `usub` | `usub/lite` | `usub/tiny` |
 | --- | :---: | :---: | :---: |
-| Minified / Gzipped (`.min.js`) | `721 B` / `435 B` | `519 B` / `340 B` | `411 B` / `271 B` |
+| Minified / Gzipped (`.min.js`) | `779 B` / `470 B` | `545 B` / `355 B` | `434 B` / `291 B` |
 | Signals & Memos (`api.effect`, `api.is`, `api.get`, `api.cleanup`) | Yes | Yes | Yes |
 | Custom Observables / Stores (`api.any`) | Yes | Yes | Yes |
 | Functions & Nested Getters (`() => value`) | Yes | Yes | Yes |
@@ -340,7 +340,7 @@ Object.assign(api, {
 
 ## Building a Custom Signal from Scratch
 
-You can pair `usub` (or `usub/tiny` at `271 B` gzipped) with a minimal 20-line custom signal implementation:
+You can pair `usub` (or `usub/tiny` at `291 B` gzipped) with a minimal 20-line custom signal implementation:
 
 ```js
 import assert from "node:assert/strict";
@@ -617,6 +617,7 @@ All 25 libraries below (including the full top 11 from [`js-reactivity-benchmark
 `usub` uses `FinalizationRegistry` carefully to prevent memory leaks without pinning reactive graphs:
 
 - **External subscriptions** (`.subscribe`, `observ`, `api.any`, Promises, Async Iterables) are registered with `FinalizationRegistry` so if a source object becomes unreachable before `off()` is called, its teardown still runs automatically.
+- **Isolated disposer & cancellation scopes:** Both the observable disposer (`off(s, c)` in `usub`) and the promise / async-iterator cancellation closure (`cancel(stop)` across `usub`, `usub/lite`, and `usub/tiny`) are module-level helpers marked `/*@__NOINLINE__*/` so `FinalizationRegistry`-held functions never capture `sub()`'s lexical context or retain `next`/`cleanup` callbacks while long-lived sources remain reachable.
 - **Effect-owned signal subscriptions** (`api.effect`) are **never** parked in `FinalizationRegistry`, because an effect disposer references the effect's dependency nodes (which reach back to the signal) and would otherwise prevent garbage collection. Always call the returned `off()` disposer when tearing down long-lived signal subscriptions, or create them inside your framework's owner/scope lifecycle.
 
 ## Development

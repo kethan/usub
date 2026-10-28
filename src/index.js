@@ -2,6 +2,7 @@ const sym = Symbol.observable ||= Symbol('observable');
 const registry = new FinalizationRegistry(unsub => unsub());
 const off = (s, c) => () =>
     s && (s.call ? s() : s.unsubscribe?.(), s = 0, c.pop()?.());
+const cancel = state => () => state[0] = 1;
 const api = {
     // any: undefined,            // any placeholder
     // cleanup: undefined,        // cleanup placeholder
@@ -26,13 +27,14 @@ const sub = (target, next, error, cleanup, stop, unsub, fx, emit = v => next?.(g
             /*@__NOINLINE__*/ off(error, cleanup))
         : (api.is(target) || target.call)
             ? target.set && target.length && target(emit) || api.any?.(target)?.(next, error, cleanup) || (fx = 1, api.effect?.(_ => (emit(target), api.cleanup?.(cleanup), cleanup)))
-            : (target.then
-                ? target.then(v => stop || (emit(v), cleanup?.()), error)
-                : (async v => {
-                    for await (v of target) { if (stop) return; emit(v) }
-                    cleanup?.()
-                })().then(0, error || is),
-                _ => stop = 1),
+            : (stop = [stop],
+                target.then
+                    ? target.then(v => stop[0] || (emit(v), cleanup?.()), error)
+                    : (async v => {
+                        for await (v of target) { if (stop[0]) return; emit(v) }
+                        cleanup?.()
+                    })().then(0, error || is),
+                /*@__NOINLINE__*/ cancel(stop)),
     fx || (registry.register(target, unsub), target = 0), // effect owned: never park in registry; clear target slot so non-effect closures never retain target
     unsub
 );

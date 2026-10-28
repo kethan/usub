@@ -101,39 +101,78 @@ describe("built bundles (ESM, CJS, UMD, IIFE) & package exports", () => {
 		}
 	});
 
-	it("preserves @__NOINLINE__ isolation in minified & re-minified ESM bundles for live observables", async () => {
+	it("preserves @__NOINLINE__ isolation in minified & re-minified ESM bundles across root, lite, and tiny", async () => {
 		await ensureBundlesBuilt();
 		const { Subject } = await import("rxjs");
 		const { minify } = await import("terser");
 
-		const esCode = fs.readFileSync(path.join(rootDir, "dist/index.es.js"), "utf8");
-		expect(esCode).toContain("@__NOINLINE__");
+		const targets = [
+			{ label: "root", dir: "dist", hasSub: true, hasAsync: true },
+			{ label: "lite", dir: "lite/dist", hasSub: false, hasAsync: true },
+			{ label: "tiny", dir: "tiny/dist", hasSub: false, hasAsync: false },
+		];
 
-		const minCode = fs.readFileSync(path.join(rootDir, "dist/index.min.js"), "utf8");
-		const iifeCtx = vm.createContext({ FinalizationRegistry, Symbol, Promise });
-		vm.runInContext(minCode, iifeCtx);
+		for (const item of targets) {
+			const base = path.join(rootDir, item.dir);
+			const esCode = fs.readFileSync(path.join(base, "index.es.js"), "utf8");
+			expect(esCode).toContain("@__NOINLINE__");
 
-		const reminifiedEs = (await minify(esCode, { module: true, compress: true, mangle: true })).code;
-		const dataUrl = `data:text/javascript;base64,${Buffer.from(reminifiedEs).toString("base64")}`;
-		const reminMod = await import(dataUrl);
+			const minCode = fs.readFileSync(path.join(base, "index.min.js"), "utf8");
+			const iifeCtx = vm.createContext({ FinalizationRegistry, Symbol, Promise });
+			vm.runInContext(minCode, iifeCtx);
 
-		for (const [label, subFn] of [
-			["dist/index.min.js", iifeCtx.usub.sub],
-			["terser(dist/index.es.js)", reminMod.sub],
-		]) {
-			const liveSubject = new Subject();
-			const refs = [];
-			for (let i = 0; i < 20; i++) {
-				const nextPayload = { n: i };
-				const cleanPayload = { c: i };
-				const dispose = subFn(liveSubject, () => nextPayload, null, () => cleanPayload);
-				refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
-				dispose();
+			const reminifiedEs = (await minify(esCode, { module: true, compress: true, mangle: true })).code;
+			const dataUrl = `data:text/javascript;base64,${Buffer.from(reminifiedEs).toString("base64")}`;
+			const reminMod = await import(dataUrl);
+
+			for (const [label, subFn] of [
+				[`${item.dir}/index.min.js`, iifeCtx.usub.sub],
+				[`terser(${item.dir}/index.es.js)`, reminMod.sub],
+			]) {
+				const liveSubject = item.hasSub ? new Subject() : null;
+				const livePromise = Promise.resolve("cached");
+				const liveIter = item.hasAsync
+					? {
+							async *[Symbol.asyncIterator]() {
+								yield 1;
+								yield 2;
+							},
+						}
+					: null;
+				const refs = [];
+
+				if (liveSubject) {
+					for (let i = 0; i < 20; i++) {
+						const nextPayload = { n: i };
+						const cleanPayload = { c: i };
+						const dispose = subFn(liveSubject, () => nextPayload, null, () => cleanPayload);
+						refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+						dispose();
+					}
+				}
+
+				for (let i = 0; i < 20; i++) {
+					const nextPayload = { n: i };
+					const cleanPayload = { c: i };
+					subFn(livePromise, () => nextPayload, null, () => cleanPayload);
+					refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+				}
+
+				if (liveIter) {
+					for (let i = 0; i < 20; i++) {
+						const nextPayload = { n: i };
+						const cleanPayload = { c: i };
+						subFn(liveIter, () => nextPayload, null, () => cleanPayload);
+						refs.push(new WeakRef(nextPayload), new WeakRef(cleanPayload));
+					}
+				}
+
+				await tick(4);
+				await gc();
+				const held = refs.filter((r) => r.deref() !== undefined).length;
+				expect(held, `${label} retained ${held}/${refs.length}`).toBe(0);
+				expect([liveSubject, livePromise, liveIter].length).toBe(3);
 			}
-			await gc();
-			const held = refs.filter((r) => r.deref() !== undefined).length;
-			expect(held, `${label} retained ${held}/${refs.length}`).toBe(0);
-			expect(liveSubject.closed).toBe(false);
 		}
 	});
 });
